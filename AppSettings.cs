@@ -26,7 +26,11 @@ namespace CloudShot
 		public bool StartWithWindows { get; set; }
 
 		// SCP configuration
-		public string ScpCommand { get; set; }
+		public string ScpHost { get; set; }
+		public int ScpPort { get; set; }
+		public string ScpRemotePath { get; set; }
+		public string ScpKeyPath { get; set; }
+		public string ScpPassword { get; set; }
 		public string ScpClipboardText { get; set; }
 
 		// Color picker configuration
@@ -50,7 +54,11 @@ namespace CloudShot
 			ScpShortcut = Keys.Control | Keys.X;
 			ColorPickerShortcut = Keys.Control | Keys.V;
 			StartWithWindows = true;
-			ScpCommand = "";
+			ScpHost = "";
+			ScpPort = 22;
+			ScpRemotePath = "";
+			ScpKeyPath = "";
+			ScpPassword = "";
 			ScpClipboardText = "";
 			ColorFormat = "RGB";
 		}

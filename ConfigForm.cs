@@ -1,25 +1,31 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.IO;
 using Microsoft.Win32;
 
 namespace CloudShot
 {
 	public partial class ConfigForm : Form
 	{
-		private bool isLoading = true;
-		private AppSettings settings;
+		private static readonly Color TableHeaderColor = Color.FromArgb(240, 240, 243);
+		private static readonly Color TableBorderColor = Color.FromArgb(210, 210, 215);
+		private const int TableRowHeight = 36;
+		private const int TableHeaderHeight = 32;
 
-		// Controls for keyboard shortcuts
-		private Label lblKeyboardShortcuts;
-		private Label lblUndo;
-		private Label lblSave;
-		private Label lblCopy;
-		private Label lblCancel;
-		private Label lblOcr;
-		private Label lblScp;
-		private Label lblColorPicker;
+		private static readonly Color AccentColor = Color.FromArgb(0, 120, 215);
+		private static readonly Color SurfaceColor = Color.FromArgb(250, 250, 252);
+		private static readonly Color FooterColor = Color.FromArgb(245, 245, 248);
+		private static readonly Font TitleFont = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+		private static readonly Font BodyFont = new Font("Segoe UI", 9F);
+		private static readonly Font HintFont = new Font("Segoe UI", 8.5F);
+
+		private const string ScpHostPlaceholder = "user@server.com";
+		private const string ScpRemotePathPlaceholder = "/var/www/screenshots/";
+		private const string ScpKeyPlaceholder = "C:\\path\\to\\key.pem";
+		private const string ScpClipboardPlaceholder = "https://my-server.com/screenshots/<image>";
+
+		private readonly AppSettings settings;
+
 		private HotkeyControl txtUndo;
 		private HotkeyControl txtSave;
 		private HotkeyControl txtCopy;
@@ -28,22 +34,17 @@ namespace CloudShot
 		private HotkeyControl txtScp;
 		private HotkeyControl txtColorPicker;
 
-		// Controls for SCP configuration
-		private Label lblScpConfig;
-		private Label lblScpCommand;
-		private Label lblScpClipboardText;
-		private TextBox txtScpCommand;
+		private TextBox txtScpHost;
+		private NumericUpDown numScpPort;
+		private TextBox txtScpRemotePath;
+		private TextBox txtScpKeyPath;
+		private TextBox txtScpPassword;
 		private TextBox txtScpClipboardText;
-        
-        // Controls for Color Picker configuration
-        private Label lblColorPickerConfig;
-        private Label lblColorFormat;
-        private ComboBox cmbColorFormat;
 
-		// Control for Windows startup
+		private ComboBox cmbColorFormat;
+
 		private CheckBox chkStartWithWindows;
 
-		// Buttons
 		private Button btnSave;
 		private Button btnCancel;
 		private Button btnReset;
@@ -53,332 +54,633 @@ namespace CloudShot
 			this.settings = settings;
 			InitializeComponents();
 			LoadSettings();
-			isLoading = false;
 		}
 
 		private void InitializeComponents()
 		{
-			this.Text = "CloudShot Settings";
-			this.Size = new Size(500, 750); // Increased height for new controls
-			this.FormBorderStyle = FormBorderStyle.FixedDialog;
-			this.MaximizeBox = false;
-			this.MinimizeBox = false;
-			this.StartPosition = FormStartPosition.CenterScreen;
-			this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+			Text = "CloudShot Settings";
+			ClientSize = new Size(520, 540);
+			FormBorderStyle = FormBorderStyle.FixedDialog;
+			MaximizeBox = false;
+			MinimizeBox = false;
+			StartPosition = FormStartPosition.CenterScreen;
+			BackColor = SurfaceColor;
+			Font = BodyFont;
+			Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
-			// Calculate panel width and positions for proper centering
-			int formWidth = this.ClientSize.Width;
-			int panelWidth = 460;
-			int panelX = (formWidth - panelWidth) / 2;
+			var tabControl = new TabControl
+			{
+				Dock = DockStyle.Fill,
+				Font = BodyFont,
+				Padding = new Point(12, 6)
+			};
 
-			// Panel de atajos de teclado
-			Panel pnlKeyboardShortcuts = new Panel();
-			pnlKeyboardShortcuts.Location = new Point(panelX, 20);
-			pnlKeyboardShortcuts.Size = new Size(panelWidth, 320); // Increased height for new shortcut
-			pnlKeyboardShortcuts.BorderStyle = BorderStyle.FixedSingle;
-			this.Controls.Add(pnlKeyboardShortcuts);
+			tabControl.TabPages.Add(BuildGeneralTab());
+			tabControl.TabPages.Add(BuildShortcutsTab());
+			tabControl.TabPages.Add(BuildScpTab());
 
-			// Título del panel
-			lblKeyboardShortcuts = new Label();
-			lblKeyboardShortcuts.Text = "Keyboard Shortcuts";
-			lblKeyboardShortcuts.Font = new Font(lblKeyboardShortcuts.Font, FontStyle.Bold);
-			lblKeyboardShortcuts.Location = new Point(10, 10);
-			lblKeyboardShortcuts.AutoSize = true;
-			pnlKeyboardShortcuts.Controls.Add(lblKeyboardShortcuts);
-
-			// Labels para atajos
-			lblUndo = new Label();
-			lblUndo.Text = "Undo last edit:";
-			lblUndo.Location = new Point(10, 50);
-			lblUndo.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblUndo);
-
-			lblSave = new Label();
-			lblSave.Text = "Save to computer:";
-			lblSave.Location = new Point(10, 90);
-			lblSave.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblSave);
-
-			lblCopy = new Label();
-			lblCopy.Text = "Copy to clipboard:";
-			lblCopy.Location = new Point(10, 130);
-			lblCopy.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblCopy);
-
-			lblOcr = new Label();
-			lblOcr.Text = "Extract text (OCR):";
-			lblOcr.Location = new Point(10, 170);
-			lblOcr.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblOcr);
-
-			lblScp = new Label();
-			lblScp.Text = "Upload via SCP:";
-			lblScp.Location = new Point(10, 210);
-			lblScp.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblScp);
-            
-            lblColorPicker = new Label();
-			lblColorPicker.Text = "Color picker:";
-			lblColorPicker.Location = new Point(10, 250);
-			lblColorPicker.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblColorPicker);
-
-			lblCancel = new Label();
-			lblCancel.Text = "Cancel capture:";
-			lblCancel.Location = new Point(10, 290);
-			lblCancel.Size = new Size(150, 20);
-			pnlKeyboardShortcuts.Controls.Add(lblCancel);
-
-			// Controles para atajos
-			txtUndo = new HotkeyControl();
-			txtUndo.Location = new Point(170, 45);
-			txtUndo.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtUndo);
-
-			txtSave = new HotkeyControl();
-			txtSave.Location = new Point(170, 85);
-			txtSave.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtSave);
-
-			txtCopy = new HotkeyControl();
-			txtCopy.Location = new Point(170, 125);
-			txtCopy.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtCopy);
-
-			txtOcr = new HotkeyControl();
-			txtOcr.Location = new Point(170, 165);
-			txtOcr.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtOcr);
-
-			txtScp = new HotkeyControl();
-			txtScp.Location = new Point(170, 205);
-			txtScp.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtScp);
-            
-            txtColorPicker = new HotkeyControl();
-			txtColorPicker.Location = new Point(170, 245);
-			txtColorPicker.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtColorPicker);
-
-			txtCancel = new HotkeyControl();
-			txtCancel.Location = new Point(170, 285);
-			txtCancel.Size = new Size(260, 25);
-			pnlKeyboardShortcuts.Controls.Add(txtCancel);
-
-			// SCP configuration panel and its content
-			InitializeScpConfigPanel(panelX, panelWidth);
-            
-            // Color Picker configuration panel
-            InitializeColorPickerConfigPanel(panelX, panelWidth);
-
-			// Checkbox to start with Windows
-			chkStartWithWindows = new CheckBox();
-			chkStartWithWindows.Text = "Start CloudShot automatically with Windows";
-			chkStartWithWindows.Location = new Point(panelX, 600); // Centered horizontally
-			chkStartWithWindows.Size = new Size(panelWidth, 20);
-			chkStartWithWindows.CheckedChanged += ChkStartWithWindows_CheckedChanged;
-			this.Controls.Add(chkStartWithWindows);
-
-			// Center the buttons
-			int btnWidth = 80;
-			int btnSpacing = 10;
-			int btnsTotalWidth = (btnWidth * 3) + (btnSpacing * 2);
-			int btnsStartX = (formWidth - btnsTotalWidth) / 2;
-
-			// Buttons
-			btnSave = new Button();
-			btnSave.Text = "Save";
-			btnSave.Location = new Point(btnsStartX, 650);
-			btnSave.Size = new Size(btnWidth, 30);
-			btnSave.Click += BtnSave_Click;
-			this.Controls.Add(btnSave);
-
-			btnCancel = new Button();
-			btnCancel.Text = "Cancel";
-			btnCancel.Location = new Point(btnsStartX + btnWidth + btnSpacing, 650);
-			btnCancel.Size = new Size(btnWidth, 30);
-			btnCancel.Click += BtnCancel_Click;
-			this.Controls.Add(btnCancel);
-
-			btnReset = new Button();
-			btnReset.Text = "Reset";
-			btnReset.Location = new Point(btnsStartX + (btnWidth + btnSpacing) * 2, 650);
-			btnReset.Size = new Size(btnWidth, 30);
-			btnReset.Click += BtnReset_Click;
-			this.Controls.Add(btnReset);
+			Controls.Add(tabControl);
+			Controls.Add(BuildFooter());
 		}
 
-		private void InitializeScpConfigPanel(int panelX, int panelWidth)
+		private TabPage BuildShortcutsTab()
 		{
-			// Panel para la configuración de SCP
-			Panel pnlScpConfig = new Panel();
-			pnlScpConfig.Location = new Point(panelX, 350); // Moved down
-			pnlScpConfig.Size = new Size(panelWidth, 150);
-			pnlScpConfig.BorderStyle = BorderStyle.FixedSingle;
-			this.Controls.Add(pnlScpConfig);
-
-			// Título del panel
-			lblScpConfig = new Label();
-			lblScpConfig.Text = "SCP Configuration";
-			lblScpConfig.Font = new Font(lblScpConfig.Font, FontStyle.Bold);
-			lblScpConfig.Location = new Point(10, 10);
-			lblScpConfig.AutoSize = true;
-			pnlScpConfig.Controls.Add(lblScpConfig);
-
-			// Label para el comando SCP
-			lblScpCommand = new Label();
-			lblScpCommand.Text = "SCP Command (use <image> as reference to the file):";
-			lblScpCommand.Location = new Point(10, 40);
-			lblScpCommand.Size = new Size(150, 20);
-			pnlScpConfig.Controls.Add(lblScpCommand);
-
-			// TextBox para el comando SCP
-			txtScpCommand = new TextBox();
-			txtScpCommand.Location = new Point(10, 65);
-			txtScpCommand.Size = new Size(panelWidth - 30, 25);
-			txtScpCommand.Text = "Example: scp -i path/to/key.pem <image> user@host:/path/";
-			txtScpCommand.ForeColor = Color.Gray;
-			pnlScpConfig.Controls.Add(txtScpCommand);
-
-			// Add placeholder behavior
-			txtScpCommand.GotFocus += (s, e) =>
+			var page = new TabPage("Shortcuts")
 			{
-				if (txtScpCommand.Text == "Example: scp -i path/to/key.pem <image> user@host:/path/")
-				{
-					txtScpCommand.Text = "";
-					txtScpCommand.ForeColor = Color.Black;
-				}
-			};
-			txtScpCommand.LostFocus += (s, e) =>
-			{
-				if (string.IsNullOrWhiteSpace(txtScpCommand.Text))
-				{
-					txtScpCommand.Text = "Example: scp -i path/to/key.pem <image> user@host:/path/";
-					txtScpCommand.ForeColor = Color.Gray;
-				}
+				BackColor = Color.White,
+				Padding = new Padding(0)
 			};
 
-			// Label para el texto del portapapeles
-			lblScpClipboardText = new Label();
-			lblScpClipboardText.Text = "Text to copy (optional, use <image> as reference):";
-			lblScpClipboardText.Location = new Point(10, 100);
-			lblScpClipboardText.Size = new Size(150, 20);
-			pnlScpConfig.Controls.Add(lblScpClipboardText);
-
-			// TextBox para el texto del portapapeles
-			txtScpClipboardText = new TextBox();
-			txtScpClipboardText.Location = new Point(10, 120);
-			txtScpClipboardText.Size = new Size(panelWidth - 30, 25);
-			txtScpClipboardText.Text = "Example: https://my-server.com/screenshots/<image>";
-			txtScpClipboardText.ForeColor = Color.Gray;
-			pnlScpConfig.Controls.Add(txtScpClipboardText);
-
-			// Add placeholder behavior
-			txtScpClipboardText.GotFocus += (s, e) =>
+			var container = new Panel
 			{
-				if (txtScpClipboardText.Text == "Example: https://my-server.com/screenshots/<image>")
-				{
-					txtScpClipboardText.Text = "";
-					txtScpClipboardText.ForeColor = Color.Black;
-				}
-			};
-			txtScpClipboardText.LostFocus += (s, e) =>
-			{
-				if (string.IsNullOrWhiteSpace(txtScpClipboardText.Text))
-				{
-					txtScpClipboardText.Text = "Example: https://my-server.com/screenshots/<image>";
-					txtScpClipboardText.ForeColor = Color.Gray;
-				}
+				Dock = DockStyle.Fill,
+				Padding = new Padding(16, 12, 16, 16),
+				BackColor = Color.White
 			};
 
-			// Ensure that the controls are visible
-			txtScpCommand.BringToFront();
-			txtScpClipboardText.BringToFront();
+			var hint = new Label
+			{
+				Text = "Click a shortcut cell and press the key combination you want to assign.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				Dock = DockStyle.Top,
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Padding = new Padding(0, 0, 0, 12)
+			};
 
-			// Ensure that all controls are visible
-			pnlScpConfig.Refresh();
+			var table = new TableLayoutPanel
+			{
+				ColumnCount = 2,
+				RowCount = 8,
+				Dock = DockStyle.Top,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
+				BackColor = TableBorderColor,
+				Margin = Padding.Empty,
+				Padding = Padding.Empty
+			};
+			table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
+			table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
+			table.RowStyles.Add(new RowStyle(SizeType.Absolute, TableHeaderHeight));
+
+			for (int i = 0; i < 7; i++)
+				table.RowStyles.Add(new RowStyle(SizeType.Absolute, TableRowHeight));
+
+			AddTableHeaderCell(table, 0, 0, "Action");
+			AddTableHeaderCell(table, 0, 1, "Shortcut");
+
+			txtUndo = AddTableShortcutRow(table, 1, "Undo last edit");
+			txtSave = AddTableShortcutRow(table, 2, "Save to computer");
+			txtCopy = AddTableShortcutRow(table, 3, "Copy to clipboard");
+			txtOcr = AddTableShortcutRow(table, 4, "Extract text (OCR)");
+			txtScp = AddTableShortcutRow(table, 5, "Upload via SCP");
+			txtColorPicker = AddTableShortcutRow(table, 6, "Color picker");
+			txtCancel = AddTableShortcutRow(table, 7, "Cancel capture");
+
+			container.Controls.Add(table);
+			container.Controls.Add(hint);
+			page.Controls.Add(container);
+			return page;
 		}
-        
-        private void InitializeColorPickerConfigPanel(int panelX, int panelWidth)
-        {
-            // Panel para la configuración del color picker
-            Panel pnlColorPickerConfig = new Panel();
-            pnlColorPickerConfig.Location = new Point(panelX, 510); // Below SCP panel
-            pnlColorPickerConfig.Size = new Size(panelWidth, 80);
-            pnlColorPickerConfig.BorderStyle = BorderStyle.FixedSingle;
-            this.Controls.Add(pnlColorPickerConfig);
 
-            // Título del panel
-            lblColorPickerConfig = new Label();
-            lblColorPickerConfig.Text = "Color Picker Configuration";
-            lblColorPickerConfig.Font = new Font(lblColorPickerConfig.Font, FontStyle.Bold);
-            lblColorPickerConfig.Location = new Point(10, 10);
-            lblColorPickerConfig.AutoSize = true;
-            pnlColorPickerConfig.Controls.Add(lblColorPickerConfig);
+		private static void AddTableHeaderCell(TableLayoutPanel table, int row, int column, string text)
+		{
+			var label = new Label
+			{
+				Text = text,
+				Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold),
+				TextAlign = ContentAlignment.MiddleLeft,
+				Dock = DockStyle.Fill,
+				BackColor = TableHeaderColor,
+				Padding = new Padding(10, 0, 10, 0),
+				Margin = Padding.Empty
+			};
+			table.Controls.Add(label, column, row);
+		}
 
-            // Label para el formato de color
-            lblColorFormat = new Label();
-            lblColorFormat.Text = "Color format:";
-            lblColorFormat.Location = new Point(10, 40);
-            lblColorFormat.Size = new Size(150, 20);
-            pnlColorPickerConfig.Controls.Add(lblColorFormat);
+		private HotkeyControl AddTableShortcutRow(TableLayoutPanel table, int row, string action)
+		{
+			var actionLabel = new Label
+			{
+				Text = action,
+				Font = BodyFont,
+				TextAlign = ContentAlignment.MiddleLeft,
+				Dock = DockStyle.Fill,
+				BackColor = Color.White,
+				Padding = new Padding(10, 0, 10, 0),
+				Margin = Padding.Empty
+			};
+			table.Controls.Add(actionLabel, 0, row);
 
-            // ComboBox para el formato de color
-            cmbColorFormat = new ComboBox();
-            cmbColorFormat.Location = new Point(170, 40);
-            cmbColorFormat.Size = new Size(260, 25);
-            cmbColorFormat.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbColorFormat.Items.AddRange(new object[] { "RGB", "HEX", "HSL" });
-            pnlColorPickerConfig.Controls.Add(cmbColorFormat);
-        }
+			var hotkey = new HotkeyControl();
+
+			var hotkeyCell = new Panel
+			{
+				Dock = DockStyle.Fill,
+				BackColor = Color.White,
+				Padding = new Padding(6, 5, 6, 5),
+				Margin = Padding.Empty
+			};
+			hotkey.Dock = DockStyle.Fill;
+			hotkeyCell.Controls.Add(hotkey);
+			table.Controls.Add(hotkeyCell, 1, row);
+
+			return hotkey;
+		}
+
+		private TabPage BuildScpTab()
+		{
+			var page = new TabPage("SCP")
+			{
+				BackColor = Color.White,
+				Padding = new Padding(16),
+				AutoScroll = true
+			};
+
+			var layout = new TableLayoutPanel
+			{
+				Dock = DockStyle.Top,
+				ColumnCount = 1,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink
+			};
+			layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+			var title = new Label
+			{
+				Text = "Remote upload (SCP)",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var description = new Label
+			{
+				Text = "Upload captures to a remote server over SSH. Provide the destination and authenticate with an SSH key or a password.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 12)
+			};
+
+			txtScpHost = CreateInputField();
+			SetupPlaceholder(txtScpHost, ScpHostPlaceholder);
+
+			numScpPort = new NumericUpDown
+			{
+				Minimum = 1,
+				Maximum = 65535,
+				Value = 22,
+				Width = 90,
+				Font = BodyFont,
+				Anchor = AnchorStyles.Left
+			};
+
+			txtScpRemotePath = CreateInputField();
+			SetupPlaceholder(txtScpRemotePath, ScpRemotePathPlaceholder);
+
+			txtScpKeyPath = CreateInputField();
+			SetupPlaceholder(txtScpKeyPath, ScpKeyPlaceholder);
+
+			txtScpPassword = CreateInputField();
+			txtScpPassword.UseSystemPasswordChar = true;
+
+			var passwordHint = new Label
+			{
+				Text = "Leave empty when using an SSH key. Password authentication requires PuTTY's pscp in PATH.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var clipboardHint = new Label
+			{
+				Text = "Text copied after a successful upload. <image> is replaced with the remote filename.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			txtScpClipboardText = CreateInputField();
+			SetupPlaceholder(txtScpClipboardText, ScpClipboardPlaceholder);
+
+			int row = 0;
+			layout.Controls.Add(title, 0, row++);
+			layout.Controls.Add(description, 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Host", null, txtScpHost), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Port", null, WrapFixedWidth(numScpPort)), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Remote path", null, txtScpRemotePath), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("SSH key file (optional)", null, WrapWithBrowse(txtScpKeyPath)), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Password (optional)", passwordHint, WrapWithPasswordToggle(txtScpPassword)), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Clipboard text (optional)", clipboardHint, txtScpClipboardText), 0, row++);
+
+			page.Controls.Add(layout);
+			return page;
+		}
+
+		private Control CreateFieldGroup(string labelText, Label hint, Control input)
+		{
+			var group = new TableLayoutPanel
+			{
+				ColumnCount = 1,
+				Dock = DockStyle.Top,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				Margin = new Padding(0, 0, 0, 10)
+			};
+			group.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+			group.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+			if (labelText != null)
+			{
+				group.Controls.Add(new Label
+				{
+					Text = labelText,
+					Font = BodyFont,
+					AutoSize = true,
+					Margin = new Padding(0, 0, 0, 4)
+				}, 0, 0);
+			}
+
+			int inputRow = labelText != null ? 1 : 0;
+			if (hint != null)
+			{
+				group.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+				group.Controls.Add(hint, 0, inputRow);
+				inputRow++;
+			}
+
+			group.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+			group.Controls.Add(input, 0, inputRow);
+			return group;
+		}
+
+		private static Control WrapFixedWidth(Control input)
+		{
+			var panel = new Panel
+			{
+				Dock = DockStyle.Fill,
+				Height = 30,
+				Margin = new Padding(0)
+			};
+			input.Location = new Point(0, 1);
+			panel.Controls.Add(input);
+			return panel;
+		}
+
+		private Control WrapWithBrowse(TextBox input)
+		{
+			var panel = new TableLayoutPanel
+			{
+				Dock = DockStyle.Fill,
+				ColumnCount = 2,
+				RowCount = 1,
+				Height = 30,
+				Margin = new Padding(0)
+			};
+			panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+			panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+
+			input.Dock = DockStyle.Fill;
+			input.Margin = new Padding(0, 0, 6, 0);
+
+			var browse = new Button
+			{
+				Text = "Browse...",
+				Dock = DockStyle.Fill,
+				FlatStyle = FlatStyle.System,
+				Font = BodyFont,
+				Margin = new Padding(0)
+			};
+			browse.Click += (s, e) => BrowseForKeyFile(input);
+
+			panel.Controls.Add(input, 0, 0);
+			panel.Controls.Add(browse, 1, 0);
+			return panel;
+		}
+
+		private Control WrapWithPasswordToggle(TextBox input)
+		{
+			var panel = new TableLayoutPanel
+			{
+				Dock = DockStyle.Fill,
+				ColumnCount = 2,
+				RowCount = 1,
+				Height = 30,
+				Margin = new Padding(0)
+			};
+			panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+			panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
+
+			input.Dock = DockStyle.Fill;
+			input.Margin = new Padding(0, 0, 6, 0);
+
+			var toggle = new CheckBox
+			{
+				Text = "Show",
+				Dock = DockStyle.Fill,
+				Font = HintFont,
+				TextAlign = ContentAlignment.MiddleLeft,
+				Margin = new Padding(0)
+			};
+			toggle.CheckedChanged += (s, e) => input.UseSystemPasswordChar = !toggle.Checked;
+
+			panel.Controls.Add(input, 0, 0);
+			panel.Controls.Add(toggle, 1, 0);
+			return panel;
+		}
+
+		private void BrowseForKeyFile(TextBox target)
+		{
+			using (var dialog = new OpenFileDialog
+			{
+				Title = "Select SSH private key",
+				Filter = "Key files (*.pem;*.ppk;*.key)|*.pem;*.ppk;*.key|All files (*.*)|*.*",
+				CheckFileExists = true
+			})
+			{
+				if (dialog.ShowDialog(this) == DialogResult.OK)
+				{
+					target.Text = dialog.FileName;
+					target.ForeColor = SystemColors.WindowText;
+				}
+			}
+		}
+
+		private TabPage BuildGeneralTab()
+		{
+			var page = new TabPage("General")
+			{
+				BackColor = Color.White,
+				Padding = new Padding(16)
+			};
+
+			var layout = new TableLayoutPanel
+			{
+				Dock = DockStyle.Fill,
+				ColumnCount = 1,
+				RowCount = 8
+			};
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+			var startupTitle = new Label
+			{
+				Text = "Startup",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			chkStartWithWindows = new CheckBox
+			{
+				Text = "Start CloudShot automatically with Windows",
+				Font = BodyFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var startupHint = new Label
+			{
+				Text = "CloudShot runs in the system tray. Use Print Screen or the tray icon to capture.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 0)
+			};
+
+			var colorTitle = new Label
+			{
+				Text = "Color picker",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var colorDescription = new Label
+			{
+				Text = "Choose how picked colors are formatted when copied to the clipboard.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 8)
+			};
+
+			var formatLabel = new Label
+			{
+				Text = "Format",
+				Font = BodyFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			cmbColorFormat = new ComboBox
+			{
+				DropDownStyle = ComboBoxStyle.DropDownList,
+				Size = new Size(200, 28),
+				Font = BodyFont,
+				Margin = new Padding(0, 0, 0, 0)
+			};
+			cmbColorFormat.Items.AddRange(new object[] { "RGB", "HEX", "HSL" });
+
+			layout.Controls.Add(startupTitle, 0, 0);
+			layout.Controls.Add(chkStartWithWindows, 0, 1);
+			layout.Controls.Add(startupHint, 0, 2);
+			layout.Controls.Add(colorTitle, 0, 4);
+			layout.Controls.Add(colorDescription, 0, 5);
+			layout.Controls.Add(formatLabel, 0, 6);
+			layout.Controls.Add(cmbColorFormat, 0, 7);
+
+			page.Controls.Add(layout);
+			return page;
+		}
+
+		private Panel BuildFooter()
+		{
+			var footer = new Panel
+			{
+				Dock = DockStyle.Bottom,
+				Height = 52,
+				BackColor = FooterColor,
+				Padding = new Padding(16, 10, 16, 10)
+			};
+
+			var separator = new Panel
+			{
+				Dock = DockStyle.Top,
+				Height = 1,
+				BackColor = Color.FromArgb(220, 220, 225)
+			};
+			footer.Controls.Add(separator);
+
+			btnReset = CreateFooterButton("Reset defaults", 120);
+			btnReset.Location = new Point(16, 14);
+			btnReset.Click += BtnReset_Click;
+
+			btnCancel = CreateFooterButton("Cancel", 88);
+			btnSave = CreateAccentButton("Save", 88);
+
+			btnCancel.Location = new Point(footer.Width - 200, 14);
+			btnSave.Location = new Point(footer.Width - 104, 14);
+			btnCancel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+			btnSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+			btnCancel.Click += BtnCancel_Click;
+			btnSave.Click += BtnSave_Click;
+
+			footer.Controls.Add(btnReset);
+			footer.Controls.Add(btnCancel);
+			footer.Controls.Add(btnSave);
+			footer.Resize += (s, e) =>
+			{
+				btnCancel.Location = new Point(footer.Width - 200, 14);
+				btnSave.Location = new Point(footer.Width - 104, 14);
+			};
+
+			return footer;
+		}
+
+		private static Button CreateFooterButton(string text, int width)
+		{
+			return new Button
+			{
+				Text = text,
+				Size = new Size(width, 30),
+				FlatStyle = FlatStyle.System,
+				Font = BodyFont
+			};
+		}
+
+		private Button CreateAccentButton(string text, int width)
+		{
+			var button = new Button
+			{
+				Text = text,
+				Size = new Size(width, 30),
+				FlatStyle = FlatStyle.Flat,
+				BackColor = AccentColor,
+				ForeColor = Color.White,
+				Font = BodyFont
+			};
+			button.FlatAppearance.BorderSize = 0;
+			return button;
+		}
+
+		private static TextBox CreateInputField()
+		{
+			return new TextBox
+			{
+				Dock = DockStyle.Fill,
+				Font = BodyFont,
+				BorderStyle = BorderStyle.FixedSingle
+			};
+		}
+
+		private static void SetupPlaceholder(TextBox textBox, string placeholder)
+		{
+			textBox.Tag = placeholder;
+			textBox.GotFocus += (s, e) =>
+			{
+				if ((string)textBox.Tag == textBox.Text)
+				{
+					textBox.Text = "";
+					textBox.ForeColor = SystemColors.WindowText;
+				}
+			};
+			textBox.LostFocus += (s, e) =>
+			{
+				if (string.IsNullOrWhiteSpace(textBox.Text))
+				{
+					textBox.Text = (string)textBox.Tag;
+					textBox.ForeColor = Color.Gray;
+				}
+			};
+		}
+
+		private static void ApplyPlaceholder(TextBox textBox, string value, string placeholder)
+		{
+			if (string.IsNullOrWhiteSpace(value))
+			{
+				textBox.Text = placeholder;
+				textBox.ForeColor = Color.Gray;
+			}
+			else
+			{
+				textBox.Text = value;
+				textBox.ForeColor = SystemColors.WindowText;
+			}
+		}
+
+		private static string GetTextBoxValue(TextBox textBox)
+		{
+			string placeholder = textBox.Tag as string;
+			if (placeholder != null && textBox.Text == placeholder)
+				return "";
+			return textBox.Text.Trim();
+		}
 
 		private void LoadSettings()
 		{
-			// Load keyboard shortcuts
 			txtUndo.Hotkey = settings.UndoShortcut;
 			txtSave.Hotkey = settings.SaveShortcut;
 			txtCopy.Hotkey = settings.CopyShortcut;
 			txtCancel.Hotkey = settings.CancelShortcut;
 			txtOcr.Hotkey = settings.OcrShortcut;
 			txtScp.Hotkey = settings.ScpShortcut;
-            txtColorPicker.Hotkey = settings.ColorPickerShortcut;
+			txtColorPicker.Hotkey = settings.ColorPickerShortcut;
 
-			// Load SCP configuration
-			txtScpCommand.Text = settings.ScpCommand;
-			txtScpClipboardText.Text = settings.ScpClipboardText;
-            
-            // Load Color Picker configuration
-            cmbColorFormat.SelectedItem = settings.ColorFormat;
+			ApplyPlaceholder(txtScpHost, settings.ScpHost, ScpHostPlaceholder);
+			numScpPort.Value = settings.ScpPort >= numScpPort.Minimum && settings.ScpPort <= numScpPort.Maximum
+				? settings.ScpPort
+				: 22;
+			ApplyPlaceholder(txtScpRemotePath, settings.ScpRemotePath, ScpRemotePathPlaceholder);
+			ApplyPlaceholder(txtScpKeyPath, settings.ScpKeyPath, ScpKeyPlaceholder);
+			txtScpPassword.Text = settings.ScpPassword ?? "";
+			ApplyPlaceholder(txtScpClipboardText, settings.ScpClipboardText, ScpClipboardPlaceholder);
 
-			// Load Windows startup configuration
+			cmbColorFormat.SelectedItem = settings.ColorFormat;
+			if (cmbColorFormat.SelectedIndex < 0)
+				cmbColorFormat.SelectedIndex = 0;
+
 			chkStartWithWindows.Checked = settings.StartWithWindows;
 		}
 
 		private void SaveSettings()
 		{
-			// Save keyboard shortcuts
 			settings.UndoShortcut = txtUndo.Hotkey;
 			settings.SaveShortcut = txtSave.Hotkey;
 			settings.CopyShortcut = txtCopy.Hotkey;
 			settings.CancelShortcut = txtCancel.Hotkey;
 			settings.OcrShortcut = txtOcr.Hotkey;
 			settings.ScpShortcut = txtScp.Hotkey;
-            settings.ColorPickerShortcut = txtColorPicker.Hotkey;
+			settings.ColorPickerShortcut = txtColorPicker.Hotkey;
 
-			// Save SCP configuration
-			settings.ScpCommand = txtScpCommand.Text.Trim();
-			settings.ScpClipboardText = txtScpClipboardText.Text.Trim();
-            
-            // Save Color Picker configuration
-            settings.ColorFormat = cmbColorFormat.SelectedItem.ToString();
+			settings.ScpHost = GetTextBoxValue(txtScpHost);
+			settings.ScpPort = (int)numScpPort.Value;
+			settings.ScpRemotePath = GetTextBoxValue(txtScpRemotePath);
+			settings.ScpKeyPath = GetTextBoxValue(txtScpKeyPath);
+			settings.ScpPassword = txtScpPassword.Text;
+			settings.ScpClipboardText = GetTextBoxValue(txtScpClipboardText);
 
-			// Save Windows startup configuration
+			settings.ColorFormat = cmbColorFormat.SelectedItem.ToString();
 			settings.StartWithWindows = chkStartWithWindows.Checked;
 
-			// Apply Windows startup configuration
 			ApplyStartupSetting(settings.StartWithWindows);
-
-			// Save configuration to file
 			settings.Save();
 		}
 
@@ -389,16 +691,9 @@ namespace CloudShot
 				using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
 				{
 					if (startWithWindows)
-					{
 						key.SetValue("CloudShot", Application.ExecutablePath);
-					}
-					else
-					{
-						if (key.GetValue("CloudShot") != null)
-						{
-							key.DeleteValue("CloudShot", false);
-						}
-					}
+					else if (key.GetValue("CloudShot") != null)
+						key.DeleteValue("CloudShot", false);
 				}
 			}
 			catch (Exception ex)
@@ -407,25 +702,17 @@ namespace CloudShot
 			}
 		}
 
-		private void ChkStartWithWindows_CheckedChanged(object sender, EventArgs e)
-		{
-			if (!isLoading)
-			{
-				// No need to do anything here, it will be applied when saving
-			}
-		}
-
 		private void BtnSave_Click(object sender, EventArgs e)
 		{
 			SaveSettings();
-			this.DialogResult = DialogResult.OK;
-			this.Close();
+			DialogResult = DialogResult.OK;
+			Close();
 		}
 
 		private void BtnCancel_Click(object sender, EventArgs e)
 		{
-			this.DialogResult = DialogResult.Cancel;
-			this.Close();
+			DialogResult = DialogResult.Cancel;
+			Close();
 		}
 
 		private void BtnReset_Click(object sender, EventArgs e)
@@ -442,15 +729,16 @@ namespace CloudShot
 		}
 	}
 
-	// Control to capture keyboard shortcuts
 	public class HotkeyControl : TextBox
 	{
 		private Keys _hotkey;
 
 		public HotkeyControl()
 		{
-			this.ReadOnly = true;
-			this.BackColor = SystemColors.Window;
+			ReadOnly = true;
+			BackColor = SystemColors.Window;
+			Font = new Font("Segoe UI", 9F);
+			BorderStyle = BorderStyle.FixedSingle;
 		}
 
 		public Keys Hotkey
@@ -459,41 +747,30 @@ namespace CloudShot
 			set
 			{
 				_hotkey = value;
-				this.Text = GetHotkeyDisplayText(_hotkey);
+				Text = GetHotkeyDisplayText(_hotkey);
 			}
 		}
 
 		protected override void OnKeyDown(KeyEventArgs e)
 		{
-			// Ignore combinations with Alt because they open menus
 			if ((e.Modifiers & Keys.Alt) == Keys.Alt)
-			{
 				return;
-			}
 
-			// Capture the key
 			Keys keyCode = e.KeyCode;
-			Keys modifiers = e.Modifiers;
-
-			// Ignore if only modifiers are pressed
 			if (keyCode == Keys.ControlKey || keyCode == Keys.ShiftKey || keyCode == Keys.Menu)
-			{
 				return;
-			}
 
-			// Set the shortcut
-			_hotkey = keyCode | modifiers;
-			this.Text = GetHotkeyDisplayText(_hotkey);
+			_hotkey = keyCode | e.Modifiers;
+			Text = GetHotkeyDisplayText(_hotkey);
 
 			e.SuppressKeyPress = true;
 			e.Handled = true;
 		}
 
-		private string GetHotkeyDisplayText(Keys hotkey)
+		private static string GetHotkeyDisplayText(Keys hotkey)
 		{
 			string text = "";
 
-			// Add modifiers
 			if ((hotkey & Keys.Control) == Keys.Control)
 				text += "Ctrl + ";
 			if ((hotkey & Keys.Shift) == Keys.Shift)
@@ -501,10 +778,7 @@ namespace CloudShot
 			if ((hotkey & Keys.Alt) == Keys.Alt)
 				text += "Alt + ";
 
-			// Add the main key
-			Keys keyCode = hotkey & Keys.KeyCode;
-			text += keyCode.ToString();
-
+			text += (hotkey & Keys.KeyCode).ToString();
 			return text;
 		}
 	}

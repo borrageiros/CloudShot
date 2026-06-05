@@ -1,11 +1,9 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Runtime.InteropServices;
-using System.Drawing.Imaging;
 using System.IO;
-using System.Drawing.Drawing2D;
 using Microsoft.Win32;
+using CloudShot.Core;
 
 namespace CloudShot
 {
@@ -140,15 +138,9 @@ namespace CloudShot
     private void CaptureScreen()
     {
       Bitmap screenShot = null;
-      Bitmap overlay_screenshot = null;
 
       try
       {
-        // Give time to the system to release resources
-        GC.Collect();
-        System.Threading.Thread.Sleep(100);
-
-        // Release the previous overlay if it exists
         if (overlay != null)
         {
           try
@@ -159,119 +151,30 @@ namespace CloudShot
           catch { }
         }
 
-        // Capture all screens
-        Rectangle totalBounds = GetTotalScreenBounds();
+        screenShot = ScreenCaptureService.CaptureAllScreens();
 
-        if (totalBounds.Width <= 0 || totalBounds.Height <= 0)
-        {
-          MessageBox.Show("Unable to determine screen dimensions", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-          return;
-        }
-
-        screenShot = new Bitmap(totalBounds.Width, totalBounds.Height, PixelFormat.Format32bppArgb);
-
-        using (Graphics g = Graphics.FromImage(screenShot))
-        {
-          // Set a high quality for the capture
-          g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-          g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-          g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-          g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-
-          // Fill with black color as base
-          g.FillRectangle(Brushes.Black, 0, 0, totalBounds.Width, totalBounds.Height);
-
-          // Capture all screens
-          foreach (Screen screen in Screen.AllScreens)
-          {
-            // Calculate the relative position of each screen
-            Rectangle bounds = screen.Bounds;
-            int relX = bounds.X - totalBounds.X;
-            int relY = bounds.Y - totalBounds.Y;
-
-            try
-            {
-              // Capture the current screen and place it in the correct position
-              g.CopyFromScreen(
-                  bounds.X, bounds.Y,
-                  relX, relY,
-                  bounds.Size,
-                  CopyPixelOperation.SourceCopy
-              );
-            }
-            catch (Exception ex)
-            {
-              Console.WriteLine($"Error capturing screen {screen.DeviceName}: {ex.Message}");
-            }
-          }
-        }
-
-        // Create a copy of the capture for the overlay
-        overlay_screenshot = new Bitmap(screenShot);
-
-        // We don't need the original capture anymore
-        screenShot.Dispose();
-        screenShot = null;
-
-        // Show the overlay to select a portion
         this.Invoke(new Action(() =>
         {
           try
           {
-            overlay = new ScreenshotOverlay(overlay_screenshot);
+            overlay = new ScreenshotOverlay(screenShot);
             overlay.ScreenshotCaptured += OnScreenshotCaptured;
             overlay.Show();
-
-            // The overlay will be responsible for releasing overlay_screenshot
-            overlay_screenshot = null;
+            screenShot = null;
           }
           catch (Exception ex)
           {
             MessageBox.Show($"Error showing the overlay: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-            if (overlay_screenshot != null)
-            {
-              overlay_screenshot.Dispose();
-              overlay_screenshot = null;
-            }
+            screenShot?.Dispose();
+            screenShot = null;
           }
         }));
       }
       catch (Exception ex)
       {
         MessageBox.Show($"Error capturing screen: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-        // Ensure resources are released
-        if (screenShot != null)
-        {
-          screenShot.Dispose();
-        }
-        if (overlay_screenshot != null)
-        {
-          overlay_screenshot.Dispose();
-        }
+        screenShot?.Dispose();
       }
-    }
-
-    private Rectangle GetTotalScreenBounds()
-    {
-      // Calculate a rectangle that contains all screens
-      int left = int.MaxValue;
-      int top = int.MaxValue;
-      int right = int.MinValue;
-      int bottom = int.MinValue;
-
-      foreach (Screen screen in Screen.AllScreens)
-      {
-        Rectangle bounds = screen.Bounds;
-
-        left = Math.Min(left, bounds.Left);
-        top = Math.Min(top, bounds.Top);
-        right = Math.Max(right, bounds.Right);
-        bottom = Math.Max(bottom, bounds.Bottom);
-      }
-
-      return new Rectangle(left, top, right - left, bottom - top);
     }
 
     private void OnScreenshotCaptured(object sender, ScreenshotEventArgs e)

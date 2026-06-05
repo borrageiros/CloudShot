@@ -1,11 +1,19 @@
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0"
+#endif
+
+#ifndef MyOutputBaseFilename
+  #define MyOutputBaseFilename "CloudShot_Setup"
+#endif
+
 [Setup]
 AppName=CloudShot
-AppVersion=1.0
+AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\CloudShot
 DisableProgramGroupPage=yes
 DisableStartupPrompt=yes
 AlwaysShowDirOnReadyPage=yes
-OutputBaseFilename=CloudShot_Setup
+OutputBaseFilename={#MyOutputBaseFilename}
 Compression=lzma
 SolidCompression=yes
 CreateUninstallRegKey=yes
@@ -21,8 +29,8 @@ ShowLanguageDialog=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "bin\Debug\net48\CloudShot.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Debug\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "bin\Release\net48\CloudShot.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\net48\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
@@ -45,7 +53,9 @@ begin
     'Configure SCP parameters (optional)',
     'You can configure these values later from the application.');
   
-  ScpCommandPage.Add('SCP Command (use <image> as reference to the file):', False);
+  ScpCommandPage.Add('Host (user@server.com):', False);
+  ScpCommandPage.Add('Remote path (e.g. /var/www/screenshots/):', False);
+  ScpCommandPage.Add('SSH key file (optional):', False);
   ScpCommandPage.Add('Text to copy (optional, use <image> as reference):', False);
 end;
 
@@ -53,14 +63,16 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   SettingsPath: String;
   SettingsFile: String;
-  ScpCommand, ScpClipboard: String;
+  ScpHost, ScpRemotePath, ScpKeyPath, ScpClipboard: String;
 begin
   if CurStep = ssPostInstall then
   begin
-    ScpCommand := ScpCommandPage.Values[0];
-    ScpClipboard := ScpCommandPage.Values[1];
+    ScpHost := ScpCommandPage.Values[0];
+    ScpRemotePath := ScpCommandPage.Values[1];
+    ScpKeyPath := ScpCommandPage.Values[2];
+    ScpClipboard := ScpCommandPage.Values[3];
     
-    if (ScpCommand <> '') or (ScpClipboard <> '') then
+    if (ScpHost <> '') or (ScpClipboard <> '') then
     begin
       // Create settings folder
       SettingsPath := ExpandConstant('{localappdata}\CloudShot');
@@ -81,7 +93,11 @@ begin
         '  <ScpShortcut>524344</ScpShortcut>' + #13#10 +
         '  <ColorPickerShortcut>524342</ColorPickerShortcut>' + #13#10 +
         '  <StartWithWindows>False</StartWithWindows>' + #13#10 +
-        '  <ScpCommand>' + ScpCommand + '</ScpCommand>' + #13#10 +
+        '  <ScpHost>' + ScpHost + '</ScpHost>' + #13#10 +
+        '  <ScpPort>22</ScpPort>' + #13#10 +
+        '  <ScpRemotePath>' + ScpRemotePath + '</ScpRemotePath>' + #13#10 +
+        '  <ScpKeyPath>' + ScpKeyPath + '</ScpKeyPath>' + #13#10 +
+        '  <ScpPassword></ScpPassword>' + #13#10 +
         '  <ScpClipboardText>' + ScpClipboard + '</ScpClipboardText>' + #13#10 +
         '  <ColorFormat>RGB</ColorFormat>' + #13#10 +
         '</AppSettings>', False);

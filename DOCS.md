@@ -4,7 +4,7 @@ Quick reference for developers working on this codebase.
 
 ## Overview
 
-CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations (pen, rectangle, filled rectangle, pixelate), color picker, OCR, and SCP upload. It runs in the background and is triggered via `PrintScreen` or the tray icon.
+CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations (pen, rectangle, filled rectangle, pixelate), color picker, OCR, and upload (SCP or anonymous Imgur). It runs in the background and is triggered via `PrintScreen` or the tray icon.
 
 **Stack:** C# / .NET Framework 4.8, WinForms, `Microsoft.Windows.SDK.Contracts` (Windows OCR API).
 
@@ -51,6 +51,8 @@ Program.Main
 | `DrawingElement.cs` | Annotation model (`Points`, `DrawingToolMode`, `DrawingColor`) |
 | `BitmapPixelReader.cs` | Fast pixel read via `LockBits` (color picker) |
 | `ScpUploadService.cs` | Runs the built-in `scp` (OpenSSH) to upload a file with SSH key auth; resolves host/user from `~/.ssh/config` |
+| `ImgurUploadService.cs` | Anonymous upload to Imgur API v3 (`POST /3/image`, base64) using a `Client-ID`; returns the image link |
+| `BuildSecrets.cs` | Reads build-time secrets (the embedded Imgur `Client-ID`) from `AssemblyMetadataAttribute`; resolves user override vs embedded value |
 | `SshConfigResolver.cs` | Maps host/IP to SSH config alias or `user@host` before running scp |
 | `UpdateService.cs` | Queries `releases/latest` on GitHub, parses `tag_name`, and reports whether a newer version exists |
 
@@ -90,7 +92,7 @@ Program.Main
 | **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for pen, rectangle, and filled rectangle stroke/fill color |
 | **Default drawing color** | `AppSettings.cs` (`DefaultDrawingColor`), `ConfigForm.cs`, `ScreenshotOverlay.cs` | Configurable in Settings → General → Drawing; stored as hex; `ScreenshotOverlay` initializes `currentDrawingColor` from it (default `#FF0000`) |
 | **OCR** | `ScreenshotOverlay.cs` (`PerformOcr`) | Uses `Windows.Media.Ocr.OcrEngine`; requires valid selection |
-| **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH private key, optional key passphrase); uses the built-in OpenSSH `scp` command. Passphrase-protected keys use `SSH_ASKPASS`. |
+| **Upload (SCP / Imgur)** | `ScreenshotOverlay.cs` (`PerformUpload` → `PerformScpUpload` / `PerformImgurUpload`), `Core/ScpUploadService.cs`, `Core/ImgurUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | `AppSettings.UploadProvider` (`"Scp"` or `"Imgur"`) selects the active service. SCP: structured config (host, port, remote path, SSH private key, optional passphrase via `SSH_ASKPASS`). Imgur: anonymous, copies the link to the clipboard; `Client-ID` is embedded at build time (see Build Secrets) with an optional per-user override in Settings. |
 | **Settings** | `AppSettings.cs`, `ConfigForm.cs` | Tray → Settings |
 | **Start with Windows** | `MainForm.cs`, `ConfigForm.cs`, `AppSettings.cs` | Registry `HKCU\...\Run\CloudShot` |
 | **Update check** | `Core/UpdateService.cs`, `MainForm.cs` (`CheckForUpdatesOnStartup`) | Runs once on `MainForm.Load`; shows a tray balloon if a newer GitHub release exists; clicking it opens the download page (`https://borrageiros.github.io/CloudShot/`) |
@@ -106,7 +108,7 @@ Program.Main
 | Save | `Ctrl+S` |
 | Undo | `Ctrl+Z` |
 | OCR | `Ctrl+R` |
-| SCP upload | `Ctrl+X` |
+| Upload (SCP or Imgur) | `Ctrl+X` |
 | Color picker | `Ctrl+V` |
 | Cancel / close overlay | `Esc` |
 
@@ -124,7 +126,7 @@ DrawingToolMode { Pen, Rectangle, FilledRectangle, Pixelate }
 ScreenshotOverlay.ScreenshotCaptured → ScreenshotEventArgs { Image }
 
 // Toolbar → overlay actions
-CaptureToolbar.ActionRequested → CaptureToolbarAction (PenMode, RectangleMode, FilledRectangleMode, PixelateMode, Move, ColorPicker, Undo, Copy, Save, Ocr, Scp, Close)
+CaptureToolbar.ActionRequested → CaptureToolbarAction (PenMode, RectangleMode, FilledRectangleMode, PixelateMode, Move, ColorPicker, Undo, Copy, Save, Ocr, Upload, Close)
 
 // Keyboard → overlay actions
 CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
@@ -155,7 +157,8 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 | Change export output | `Export/ImageExporter.cs` |
 | Change drawing tools / pixelate block size | `Export/ImageExporter.cs` (`PixelateBlockSize`), `Core/DrawingElement.cs` |
 | Fix multi-monitor issues | `Core/ScreenCaptureService.cs`, `Core/CoordinateMapper.cs` |
-| Change SCP behavior | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs` |
+| Change upload behavior | `ScreenshotOverlay.cs` (`PerformUpload`, `PerformScpUpload`, `PerformImgurUpload`), `Core/ScpUploadService.cs`, `Core/ImgurUploadService.cs` |
+| Change the embedded Imgur Client-ID | `secrets.props` (git-ignored) or `IMGUR_CLIENT_ID` env var; read via `Core/BuildSecrets.cs` |
 | Change OCR behavior | `ScreenshotOverlay.cs` (`PerformOcr`, `ExtractTextFromImageAsync`) |
 
 ---
@@ -166,6 +169,15 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 - **Output:** `bin/Debug/net48/CloudShot.exe`
 - **Installer:** `CloudShotSetup.iss` (Inno Setup; packages `bin/Debug/net48/*`)
 - **User docs:** `README.md`
+
+### Build Secrets (Imgur Client-ID)
+
+- The Imgur `Client-ID` is injected at build time, not committed to the repo.
+- Resolution order: `IMGUR_CLIENT_ID` environment variable → `secrets.props` (`<ImgurClientId>`) → empty.
+- `CloudShot.csproj` imports `secrets.props` (git-ignored) and writes the value into an `AssemblyMetadataAttribute("ImgurClientId", ...)`.
+- `Core/BuildSecrets.cs` reads that attribute at runtime; `AppSettings.ImgurClientId` (Settings → Uploads → Imgur) can override it per user.
+- Copy `secrets.props.example` → `secrets.props` and fill in the value, or set the env var before building.
+- **Security note:** the embedded Client-ID ends up inside the compiled binary and is therefore discoverable by a determined user (decompilation / HTTPS inspection). This only keeps it out of the public source/git history; it is not a true secret. This is acceptable for an Imgur anonymous Client-ID (the only risk is rate-limit abuse).
 
 ---
 

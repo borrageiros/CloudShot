@@ -8,6 +8,21 @@
     <Version>2.4</Version>
   </PropertyGroup>
 
+  <!-- Build-time secrets. Values come from secrets.props (git-ignored) or the
+       IMGUR_CLIENT_ID environment variable. The environment variable wins. -->
+  <Import Project="secrets.props" Condition="Exists('secrets.props')" />
+
+  <PropertyGroup Condition="'$(IMGUR_CLIENT_ID)' != ''">
+    <ImgurClientId>$(IMGUR_CLIENT_ID)</ImgurClientId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>ImgurClientId</_Parameter1>
+      <_Parameter2>$(ImgurClientId)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />

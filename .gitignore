@@ -61,6 +61,7 @@ $RECYCLE.BIN/
 *.bak
 *.temp
 settings.xml
+secrets.props
 *.log.*
 TestResults/
 

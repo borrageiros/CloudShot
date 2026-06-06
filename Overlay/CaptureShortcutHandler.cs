@@ -64,7 +64,7 @@ namespace CloudShot.Overlay
 			if ((keyData == settings.ScpShortcut || (keyData == (Keys.Control | Keys.X))) &&
 			    hasSelection && isScreenshotValid)
 			{
-				action = CaptureShortcutAction.Scp;
+				action = CaptureShortcutAction.Upload;
 				return true;
 			}
 
@@ -80,7 +80,7 @@ namespace CloudShot.Overlay
 		Save,
 		Undo,
 		Ocr,
-		Scp,
+		Upload,
 		ActivateColorPicker
 	}
 }

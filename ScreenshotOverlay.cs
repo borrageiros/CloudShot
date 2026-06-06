@@ -160,8 +160,8 @@ namespace CloudShot
 				case CaptureToolbarAction.Ocr:
 					_ = PerformOcr();
 					break;
-				case CaptureToolbarAction.Scp:
-					PerformScp();
+				case CaptureToolbarAction.Upload:
+					PerformUpload();
 					break;
 				case CaptureToolbarAction.Close:
 					Close();
@@ -275,8 +275,8 @@ namespace CloudShot
 				case CaptureShortcutAction.Ocr:
 					_ = PerformOcr();
 					break;
-				case CaptureShortcutAction.Scp:
-					PerformScp();
+				case CaptureShortcutAction.Upload:
+					PerformUpload();
 					break;
 				case CaptureShortcutAction.ActivateColorPicker:
 					ActivateColorPicker();
@@ -1084,14 +1084,44 @@ namespace CloudShot
 			}
 		}
 
-		private void PerformScp()
+		private void PerformUpload()
 		{
 			if (!isScreenshotValid || selectionRectangle.IsEmpty)
 			{
-				MessageBox.Show("Please select a valid area of the image to upload via SCP.", "SCP", MessageBoxButtons.OK, MessageBoxIcon.Information);
+				MessageBox.Show("Please select a valid area of the image to upload.", "Upload", MessageBoxButtons.OK, MessageBoxIcon.Information);
 				return;
 			}
 
+			if (string.Equals(settings.UploadProvider, "Imgur", StringComparison.OrdinalIgnoreCase))
+			{
+				PerformImgurUpload();
+			}
+			else
+			{
+				PerformScpUpload();
+			}
+		}
+
+		private string SaveSelectionToTempFile(out string fileName)
+		{
+			fileName = $"cloudshot_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+			string tempFile = Path.Combine(Path.GetTempPath(), fileName);
+
+			using (Bitmap selectedArea = RenderCurrentSelection(true))
+			{
+				if (selectedArea == null)
+				{
+					return null;
+				}
+
+				selectedArea.Save(tempFile, ImageFormat.Png);
+			}
+
+			return tempFile;
+		}
+
+		private void PerformScpUpload()
+		{
 			if (string.IsNullOrWhiteSpace(settings.ScpHost))
 			{
 				MessageBox.Show(
@@ -1107,17 +1137,10 @@ namespace CloudShot
 
 			try
 			{
-				string fileName = $"cloudshot_{DateTime.Now:yyyyMMdd_HHmmss}.png";
-				tempFile = Path.Combine(Path.GetTempPath(), fileName);
-
-				using (Bitmap selectedArea = RenderCurrentSelection(true))
+				tempFile = SaveSelectionToTempFile(out string fileName);
+				if (tempFile == null)
 				{
-					if (selectedArea == null)
-					{
-						return;
-					}
-
-					selectedArea.Save(tempFile, ImageFormat.Png);
+					return;
 				}
 
 				string host = settings.ScpHost;
@@ -1146,17 +1169,19 @@ namespace CloudShot
 								{
 									if (result.Success)
 									{
-										if (!string.IsNullOrWhiteSpace(clipboardText) &&
-										    clipboardText.Contains("<image>"))
+										bool linkCopied = !string.IsNullOrWhiteSpace(clipboardText) &&
+										    clipboardText.Contains("<image>");
+
+										if (linkCopied)
 										{
 											Clipboard.SetText(clipboardText.Replace("<image>", fileName));
 										}
 
-										NotifyScpCompleted(fileName, clipboardText);
+										NotifyUploadCompleted("SCP", fileName, linkCopied);
 									}
 									else
 									{
-										NotifyScpFailed(result.ErrorMessage);
+										NotifyUploadFailed("SCP", result.ErrorMessage);
 									}
 								}
 								finally
@@ -1174,6 +1199,82 @@ namespace CloudShot
 			catch (Exception ex)
 			{
 				MessageBox.Show($"Error performing SCP: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			}
+			finally
+			{
+				if (!uploadScheduled)
+				{
+					DeleteTempFile(tempFile);
+				}
+			}
+		}
+
+		private void PerformImgurUpload()
+		{
+			string clientId = BuildSecrets.ResolveImgurClientId(settings.ImgurClientId);
+			if (string.IsNullOrWhiteSpace(clientId))
+			{
+				MessageBox.Show(
+					"Imgur is not available.\nThis build has no embedded Client-ID. Open Settings and add an Imgur Client-ID.",
+					"Imgur Configuration Error",
+					MessageBoxButtons.OK,
+					MessageBoxIcon.Error);
+				return;
+			}
+
+			string tempFile = null;
+			bool uploadScheduled = false;
+
+			try
+			{
+				tempFile = SaveSelectionToTempFile(out string fileName);
+				if (tempFile == null)
+				{
+					return;
+				}
+
+				string fileToUpload = tempFile;
+
+				Close();
+				uploadScheduled = true;
+
+				Task.Run(() =>
+				{
+					ImgurUploadResult result = new ImgurUploadService().Upload(fileToUpload, clientId);
+
+					foreach (Form form in Application.OpenForms)
+					{
+						if (form is MainForm mainForm)
+						{
+							mainForm.BeginInvoke(new Action(() =>
+							{
+								try
+								{
+									if (result.Success)
+									{
+										Clipboard.SetText(result.Link);
+										NotifyUploadCompleted("Imgur", fileName, true);
+									}
+									else
+									{
+										NotifyUploadFailed("Imgur", result.ErrorMessage);
+									}
+								}
+								finally
+								{
+									DeleteTempFile(fileToUpload);
+								}
+							}));
+							return;
+						}
+					}
+
+					DeleteTempFile(fileToUpload);
+				});
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Error performing Imgur upload: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 			finally
 			{
@@ -1302,29 +1403,29 @@ namespace CloudShot
 			}
 		}
 
-		private static void NotifyScpCompleted(string fileName, string scpClipboardText)
+		private static void NotifyUploadCompleted(string provider, string fileName, bool linkCopied)
 		{
 			foreach (Form form in Application.OpenForms)
 			{
 				if (form is MainForm mainForm)
 				{
-					string clipboardInfo = string.IsNullOrWhiteSpace(scpClipboardText)
-						? string.Empty
-						: "\nThe link has been copied to the clipboard.";
+					string clipboardInfo = linkCopied
+						? "\nThe link has been copied to the clipboard."
+						: string.Empty;
 
-					mainForm.ShowNotification("SCP Upload Complete", $"Image {fileName} uploaded successfully.{clipboardInfo}");
+					mainForm.ShowNotification($"{provider} Upload Complete", $"Image {fileName} uploaded successfully.{clipboardInfo}");
 					return;
 				}
 			}
 		}
 
-		private static void NotifyScpFailed(string errorMessage)
+		private static void NotifyUploadFailed(string provider, string errorMessage)
 		{
 			foreach (Form form in Application.OpenForms)
 			{
 				if (form is MainForm mainForm)
 				{
-					MessageBox.Show(mainForm, $"Error uploading via SCP:\n{errorMessage}", "SCP Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+					MessageBox.Show(mainForm, $"Error uploading via {provider}:\n{errorMessage}", $"{provider} Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 					return;
 				}
 			}

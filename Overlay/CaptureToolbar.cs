@@ -19,7 +19,7 @@ namespace CloudShot.Overlay
 		Copy,
 		Save,
 		Ocr,
-		Scp,
+		Upload,
 		Close
 	}
 
@@ -51,7 +51,7 @@ namespace CloudShot.Overlay
 			CaptureToolbarAction.Copy,
 			CaptureToolbarAction.Save,
 			CaptureToolbarAction.Ocr,
-			CaptureToolbarAction.Scp,
+			CaptureToolbarAction.Upload,
 			CaptureToolbarAction.Close
 		};
 
@@ -62,7 +62,7 @@ namespace CloudShot.Overlay
 			shortcutLabels[(int)CaptureToolbarAction.Copy] = FormatShortcut(settings.CopyShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Save] = FormatShortcut(settings.SaveShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Ocr] = FormatShortcut(settings.OcrShortcut);
-			shortcutLabels[(int)CaptureToolbarAction.Scp] = FormatShortcut(settings.ScpShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.Upload] = FormatShortcut(settings.ScpShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Close] = FormatShortcut(settings.CancelShortcut);
 		}
 
@@ -512,7 +512,7 @@ namespace CloudShot.Overlay
 							g.DrawString("Aa", font, new SolidBrush(iconColor), cx - 9, cy - 8);
 						}
 						break;
-					case CaptureToolbarAction.Scp:
+					case CaptureToolbarAction.Upload:
 						using (GraphicsPath cloud = new GraphicsPath())
 						{
 							cloud.AddArc(cx - 10, cy - 3, 8, 8, 90, 180);
@@ -604,7 +604,7 @@ namespace CloudShot.Overlay
 					return "Save";
 				case CaptureToolbarAction.Ocr:
 					return "OCR";
-				case CaptureToolbarAction.Scp:
+				case CaptureToolbarAction.Upload:
 					return "Upload";
 				case CaptureToolbarAction.Close:
 					return "Cancel";

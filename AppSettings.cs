@@ -25,6 +25,9 @@ namespace CloudShot
 		// Windows startup
 		public bool StartWithWindows { get; set; }
 
+		// Upload provider ("Scp" or "Imgur")
+		public string UploadProvider { get; set; }
+
 		// SCP configuration
 		public string ScpHost { get; set; }
 		public int ScpPort { get; set; }
@@ -32,6 +35,9 @@ namespace CloudShot
 		public string ScpKeyPath { get; set; }
 		public string ScpKeyPassphrase { get; set; }
 		public string ScpClipboardText { get; set; }
+
+		// Imgur configuration (optional Client-ID override; falls back to the embedded one)
+		public string ImgurClientId { get; set; }
 
 		// Color picker configuration
 		public string ColorFormat { get; set; }
@@ -57,12 +63,14 @@ namespace CloudShot
 			ScpShortcut = Keys.Control | Keys.X;
 			ColorPickerShortcut = Keys.Control | Keys.V;
 			StartWithWindows = true;
+			UploadProvider = "Scp";
 			ScpHost = "";
 			ScpPort = 22;
 			ScpRemotePath = "";
 			ScpKeyPath = "";
 			ScpKeyPassphrase = "";
 			ScpClipboardText = "";
+			ImgurClientId = "";
 			ColorFormat = "RGB";
 			DefaultDrawingColor = "#FF0000";
 		}

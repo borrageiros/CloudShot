@@ -23,6 +23,7 @@ namespace CloudShot
 		private const string ScpRemotePathPlaceholder = "/var/www/screenshots/";
 		private const string ScpKeyPlaceholder = "C:\\Users\\you\\.ssh\\id_ed25519";
 		private const string ScpClipboardPlaceholder = "https://my-server.com/screenshots/<image>";
+		private const string ImgurClientIdPlaceholder = "Optional: use your own Imgur Client-ID";
 
 		private readonly AppSettings settings;
 
@@ -34,12 +35,19 @@ namespace CloudShot
 		private HotkeyControl txtScp;
 		private HotkeyControl txtColorPicker;
 
+		private RadioButton rdoProviderScp;
+		private RadioButton rdoProviderImgur;
+		private Panel scpPanel;
+		private Panel imgurPanel;
+
 		private TextBox txtScpHost;
 		private NumericUpDown numScpPort;
 		private TextBox txtScpRemotePath;
 		private TextBox txtScpKeyPath;
 		private TextBox txtScpKeyPassphrase;
 		private TextBox txtScpClipboardText;
+
+		private TextBox txtImgurClientId;
 
 		private ComboBox cmbColorFormat;
 
@@ -80,7 +88,7 @@ namespace CloudShot
 
 			tabControl.TabPages.Add(BuildGeneralTab());
 			tabControl.TabPages.Add(BuildShortcutsTab());
-			tabControl.TabPages.Add(BuildScpTab());
+			tabControl.TabPages.Add(BuildUploadsTab());
 
 			Controls.Add(tabControl);
 			Controls.Add(BuildFooter());
@@ -138,7 +146,7 @@ namespace CloudShot
 			txtSave = AddTableShortcutRow(table, 2, "Save to computer");
 			txtCopy = AddTableShortcutRow(table, 3, "Copy to clipboard");
 			txtOcr = AddTableShortcutRow(table, 4, "Extract text (OCR)");
-			txtScp = AddTableShortcutRow(table, 5, "Upload via SCP");
+			txtScp = AddTableShortcutRow(table, 5, "Upload");
 			txtColorPicker = AddTableShortcutRow(table, 6, "Color picker");
 			txtCancel = AddTableShortcutRow(table, 7, "Cancel capture");
 
@@ -193,13 +201,92 @@ namespace CloudShot
 			return hotkey;
 		}
 
-		private TabPage BuildScpTab()
+		private TabPage BuildUploadsTab()
 		{
-			var page = new TabPage("SCP")
+			var page = new TabPage("Uploads")
 			{
 				BackColor = Color.White,
 				Padding = new Padding(16),
 				AutoScroll = true
+			};
+
+			var layout = new TableLayoutPanel
+			{
+				Dock = DockStyle.Top,
+				ColumnCount = 1,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink
+			};
+			layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+			var tabTitle = new Label
+			{
+				Text = "Uploads",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var tabDescription = new Label
+			{
+				Text = "Choose which upload service the Upload action uses for your captures.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 8)
+			};
+
+			var providerSelector = new FlowLayoutPanel
+			{
+				FlowDirection = FlowDirection.LeftToRight,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				WrapContents = false,
+				Margin = new Padding(0, 0, 0, 12)
+			};
+
+			rdoProviderScp = new RadioButton
+			{
+				Text = "SCP",
+				Font = BodyFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 24, 0)
+			};
+
+			rdoProviderImgur = new RadioButton
+			{
+				Text = "Imgur",
+				Font = BodyFont,
+				AutoSize = true,
+				Margin = new Padding(0)
+			};
+
+			rdoProviderScp.CheckedChanged += (s, e) => UpdateUploadProviderVisibility();
+			rdoProviderImgur.CheckedChanged += (s, e) => UpdateUploadProviderVisibility();
+
+			providerSelector.Controls.Add(rdoProviderScp);
+			providerSelector.Controls.Add(rdoProviderImgur);
+
+			int outerRow = 0;
+			layout.Controls.Add(tabTitle, 0, outerRow++);
+			layout.Controls.Add(tabDescription, 0, outerRow++);
+			layout.Controls.Add(providerSelector, 0, outerRow++);
+			layout.Controls.Add(BuildScpPanel(), 0, outerRow++);
+			layout.Controls.Add(BuildImgurPanel(), 0, outerRow++);
+
+			page.Controls.Add(layout);
+			return page;
+		}
+
+		private Control BuildScpPanel()
+		{
+			scpPanel = new Panel
+			{
+				Dock = DockStyle.Top,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				Margin = new Padding(0)
 			};
 
 			var layout = new TableLayoutPanel
@@ -294,8 +381,75 @@ namespace CloudShot
 			layout.Controls.Add(CreateFieldGroup("Key passphrase (optional)", passphraseHint, WrapWithPasswordToggle(txtScpKeyPassphrase)), 0, row++);
 			layout.Controls.Add(CreateFieldGroup("Clipboard text (optional)", clipboardHint, txtScpClipboardText), 0, row++);
 
-			page.Controls.Add(layout);
-			return page;
+			scpPanel.Controls.Add(layout);
+			return scpPanel;
+		}
+
+		private Control BuildImgurPanel()
+		{
+			imgurPanel = new Panel
+			{
+				Dock = DockStyle.Top,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				Margin = new Padding(0)
+			};
+
+			var layout = new TableLayoutPanel
+			{
+				Dock = DockStyle.Top,
+				ColumnCount = 1,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink
+			};
+			layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+			var title = new Label
+			{
+				Text = "Anonymous upload (Imgur)",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var description = new Label
+			{
+				Text = "Upload captures anonymously to Imgur. The image link is copied to the clipboard automatically. No account is required.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 12)
+			};
+
+			var clientIdHint = new Label
+			{
+				Text = "Leave empty to use the Client-ID bundled with CloudShot. Set your own only if you want uploads tied to your Imgur application.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			txtImgurClientId = CreateInputField();
+			SetupPlaceholder(txtImgurClientId, ImgurClientIdPlaceholder);
+
+			int row = 0;
+			layout.Controls.Add(title, 0, row++);
+			layout.Controls.Add(description, 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Client-ID (optional)", clientIdHint, txtImgurClientId), 0, row++);
+
+			imgurPanel.Controls.Add(layout);
+			return imgurPanel;
+		}
+
+		private void UpdateUploadProviderVisibility()
+		{
+			if (scpPanel != null)
+				scpPanel.Visible = rdoProviderScp.Checked;
+			if (imgurPanel != null)
+				imgurPanel.Visible = rdoProviderImgur.Checked;
 		}
 
 		private Control CreateFieldGroup(string labelText, Label hint, Control input)
@@ -765,6 +919,13 @@ namespace CloudShot
 			txtScpKeyPassphrase.Text = settings.ScpKeyPassphrase ?? "";
 			ApplyPlaceholder(txtScpClipboardText, settings.ScpClipboardText, ScpClipboardPlaceholder);
 
+			ApplyPlaceholder(txtImgurClientId, settings.ImgurClientId, ImgurClientIdPlaceholder);
+
+			bool useImgur = string.Equals(settings.UploadProvider, "Imgur", StringComparison.OrdinalIgnoreCase);
+			rdoProviderImgur.Checked = useImgur;
+			rdoProviderScp.Checked = !useImgur;
+			UpdateUploadProviderVisibility();
+
 			cmbColorFormat.SelectedItem = settings.ColorFormat;
 			if (cmbColorFormat.SelectedIndex < 0)
 				cmbColorFormat.SelectedIndex = 0;
@@ -792,6 +953,9 @@ namespace CloudShot
 			settings.ScpKeyPath = GetTextBoxValue(txtScpKeyPath);
 			settings.ScpKeyPassphrase = txtScpKeyPassphrase.Text;
 			settings.ScpClipboardText = GetTextBoxValue(txtScpClipboardText);
+
+			settings.UploadProvider = rdoProviderImgur.Checked ? "Imgur" : "Scp";
+			settings.ImgurClientId = GetTextBoxValue(txtImgurClientId);
 
 			settings.ColorFormat = cmbColorFormat.SelectedItem.ToString();
 			settings.DefaultDrawingColor = ToHex(defaultDrawingColor);

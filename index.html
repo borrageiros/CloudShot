@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloudShot - Screenshot Tool for Windows with OCR and SCP Upload</title>
+<meta name="description" content="CloudShot is a lightweight Windows screenshot app by borrageiros with region capture, annotations, color picker, OCR, and automatic SCP upload.">
+<meta name="keywords" content="cloudshot, borrageiros, screenshot, screen capture, windows, ocr, scp upload, color picker, open source">
+<meta name="author" content="borrageiros">
+<link rel="canonical" href="https://borrageiros.github.io/CloudShot/">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://borrageiros.github.io/CloudShot/">
+<meta property="og:title" content="CloudShot - Screenshot Tool for Windows">
+<meta property="og:description" content="Capture, annotate, extract text with OCR, and upload screenshots via SCP. A modern screenshot tool for Windows.">
+<meta property="og:image" content="https://raw.githubusercontent.com/borrageiros/CloudShot/main/icon.svg">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary">
+<meta property="twitter:url" content="https://borrageiros.github.io/CloudShot/">
+<meta property="twitter:title" content="CloudShot - Screenshot Tool for Windows">
+<meta property="twitter:description" content="Capture, annotate, extract text with OCR, and upload screenshots via SCP. A modern screenshot tool for Windows.">
+<meta property="twitter:image" content="https://raw.githubusercontent.com/borrageiros/CloudShot/main/icon.svg">
+<link rel="icon" href="https://raw.githubusercontent.com/borrageiros/CloudShot/main/app.ico">
+<link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CloudShot",
+  "operatingSystem": "Windows",
+  "applicationCategory": "UtilitiesApplication",
+  "description": "CloudShot is a modern, lightweight screenshot application for Windows with OCR and automatic uploading via SCP.",
+  "author": {
+    "@type": "Person",
+    "name": "borrageiros",
+    "url": "https://borrageiros.com/"
+  },
+  "downloadUrl": "https://github.com/borrageiros/CloudShot/releases/latest",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+<div class="page">
+  <div class="title-block">
+    <img src="https://raw.githubusercontent.com/borrageiros/CloudShot/main/icon.svg" alt="CloudShot icon" class="icon">
+    <div>
+      <h1>CloudShot</h1>
+      <p class="subtitle">Screenshot tool for Windows with OCR and SCP upload</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <h2>Download</h2>
+    <p id="latest-version-label" class="version-text">Detecting latest version...</p>
+    <div class="download-main">
+      <a id="btn-latest" class="button primary" href="https://github.com/borrageiros/CloudShot/releases/latest" target="_blank" rel="noopener noreferrer">Download latest version</a>
+      <a class="button" href="https://github.com/borrageiros/CloudShot/releases" target="_blank" rel="noopener noreferrer">All releases</a>
+    </div>
+
+    <ul class="download-list">
+      <li>
+        <span>Installer:</span>
+        <a id="btn-installer" class="download-link disabled" href="https://github.com/borrageiros/CloudShot/releases/latest" target="_blank" rel="noopener noreferrer">Resolving link...</a>
+      </li>
+      <li>
+        <span>Portable:</span>
+        <a id="btn-portable" class="download-link disabled" href="https://github.com/borrageiros/CloudShot/releases/latest" target="_blank" rel="noopener noreferrer">Resolving link...</a>
+      </li>
+    </ul>
+    <p id="download-note" class="note"></p>
+  </section>
+
+  <section class="section">
+    <h2>What is CloudShot?</h2>
+    <p>CloudShot is a modern, powerful, and lightweight screenshot application for Windows. It runs in the system tray and is triggered with <code>PrintScreen</code> or the tray icon.</p>
+    <p>Select any region of the screen, annotate your capture, copy it to the clipboard, save it as a file, extract text with OCR, or upload it to a remote server via SCP.</p>
+  </section>
+
+  <section class="section">
+    <h2>Main features</h2>
+    <ul class="feature-list">
+      <li>Region capture with drawing and annotation tools</li>
+      <li>Move and resize the selection before exporting</li>
+      <li>Color picker with zoom preview (RGB, HEX, HSL)</li>
+      <li>Text recognition (OCR) with clipboard copy</li>
+      <li>Automatic upload via SCP with customizable settings</li>
+      <li>Configurable keyboard shortcuts and start with Windows</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h2>Keyboard shortcuts</h2>
+    <ul class="shortcut-list">
+      <li><code>PrintScreen</code> — Start capture</li>
+      <li><code>Ctrl+C</code> — Copy to clipboard</li>
+      <li><code>Ctrl+S</code> — Save as file</li>
+      <li><code>Ctrl+Z</code> — Undo last action</li>
+      <li><code>Ctrl+R</code> — Extract text (OCR)</li>
+      <li><code>Ctrl+X</code> — Upload via SCP</li>
+      <li><code>Ctrl+V</code> — Activate color picker</li>
+      <li><code>Esc</code> — Cancel</li>
+    </ul>
+    <p class="note">All overlay shortcuts can be customized in Settings.</p>
+  </section>
+
+  <section class="section">
+    <h2>Source code</h2>
+    <p>The project is open source and hosted on <a href="https://github.com/borrageiros/CloudShot" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+  </section>
+
+  <section class="section">
+    <h2>Author</h2>
+    <p>CloudShot is made by <a href="https://borrageiros.com/" target="_blank" rel="noopener noreferrer">borrageiros</a>.</p>
+  </section>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

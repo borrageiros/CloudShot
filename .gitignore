@@ -1,72 +1,16 @@
-# Visual Studio files
-.vs/
-bin/
-obj/
-*.user
-*.suo
-*.cache
-*.dll
-*.pdb
-*.exe
-*.tmp
-*.log
-*.vspscc
-*.vssscc
-.builds
-*.pidb
-*.svclog
-*.userprefs
-.cursor/
-.cursorrules
-*.cursor-cache 
-
-# Build results
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-bld/
-[Bb]in/
-[Oo]bj/
-[Ll]og/
-[Ll]ogs/
-Output/
-
-# NuGet Packages
-*.nupkg
-*.snupkg
-**/[Pp]ackages/*
-!**/[Pp]ackages/build/
-*.nuget.props
-*.nuget.targets
-
-# VS Code files
-.vscode/
-*.code-workspace
-.history/
-
-# Windows specific files
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-*.lnk
+.DS_Store
+*.swp
 
-# Inno Setup files
-*.~is
-
-# Application specific
-*.bak
-*.temp
-settings.xml
-*.log.*
-TestResults/
-
-# IDE specific
+/bin/
+artifacts/
+*.dll
+*.exe
+*.o
+cloudshot.o
+*.log
+*.tmp
+.vscode/
 .idea/
-*.sln.iml
-.vs/
-_ReSharper*/
-*.ReSharper* 
+*.bak
+*~

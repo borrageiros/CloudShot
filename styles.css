@@ -1,0 +1,167 @@
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f5f5f5;
+  color: #222222;
+}
+
+.page {
+  max-width: 700px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  padding: 20px;
+}
+
+a {
+    text-decoration: none;
+    color: blue; 
+}
+
+a:visited {
+    color: blue; 
+}
+
+.title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+h2 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.subtitle {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #555555;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.version-text {
+  font-size: 13px;
+  color: #444444;
+  margin: 4px 0 10px 0;
+}
+
+.download-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.button {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 3px;
+  border: 1px solid #333333;
+  background-color: #e5e5e5;
+  color: #000000;
+}
+
+.button.primary {
+  background-color: #d0d0ff;
+}
+
+.button:hover {
+  background-color: #d8d8d8;
+}
+
+.button.primary:hover {
+  background-color: #c2c2ff;
+}
+
+.download-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 6px 0;
+}
+
+.download-list li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.download-list span {
+  display: inline-block;
+  min-width: 120px;
+}
+
+.download-link {
+  color: #0044aa;
+  text-decoration: underline;
+}
+
+.download-link.disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.note {
+  font-size: 12px;
+  color: #666666;
+}
+
+.feature-list,
+.shortcut-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.feature-list li,
+.shortcut-list li {
+  margin-bottom: 4px;
+}
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  background-color: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.small-text {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #777777;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 10px;
+  }
+
+  .page {
+    padding: 14px;
+  }
+
+  .title-block {
+    align-items: flex-start;
+  }
+
+  .download-list span {
+    min-width: 0;
+    margin-right: 4px;
+  }
+}

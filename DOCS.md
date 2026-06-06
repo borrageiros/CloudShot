@@ -86,6 +86,8 @@ Program.Main
 
 | `Core/UpdateService.cs` | Checks GitHub latest release once on startup; compares with the assembly version |
 
+| `Core/ToastNotificationService.cs` | Windows toast notifications (WinRT); sets `AppUserModelID`, creates a Start Menu shortcut, supports click-to-open URL |
+
 
 
 ### `Core/`
@@ -206,7 +208,9 @@ Program.Main
 
 | **Start with Windows** | `MainForm.cs`, `ConfigForm.cs`, `AppSettings.cs` | Registry `HKCU\...\Run\CloudShot` |
 
-| **Update check** | `Core/UpdateService.cs`, `MainForm.cs` (`CheckForUpdatesOnStartup`) | Runs once on `MainForm.Load`; shows a tray balloon if a newer GitHub release exists; clicking it opens the download page (`https://borrageiros.github.io/CloudShot/`) |
+| **Update check** | `Core/UpdateService.cs`, `MainForm.cs` (`CheckForUpdatesOnStartup`) | Runs once on `MainForm.Load`; shows a Windows toast notification if a newer GitHub release exists; clicking it opens the download page (`https://borrageiros.github.io/CloudShot/`) |
+
+| **Notifications** | `Core/ToastNotificationService.cs`, `MainForm.cs` | Windows toast notifications for capture-to-clipboard, OCR, SCP, color picker, and updates; replaces `NotifyIcon.ShowBalloonTip` |
 
 
 

@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
@@ -14,7 +13,6 @@ namespace CloudShot
     private KeyboardHook keyboardHook;
     private ScreenshotOverlay overlay;
     private AppSettings settings;
-    private string pendingUpdateUrl;
 
     public MainForm()
     {
@@ -71,6 +69,7 @@ namespace CloudShot
       this.Load += (s, e) =>
       {
         this.Hide();
+        ToastNotificationService.Initialize();
         CheckForUpdatesOnStartup();
       };
 
@@ -192,13 +191,7 @@ namespace CloudShot
           // Copy the image to the clipboard
           Clipboard.SetImage(e.Image);
 
-          // Show a notification
-          trayIcon.ShowBalloonTip(
-              3000,
-              "CloudShot",
-              "Screenshot copied to clipboard",
-              ToolTipIcon.Info
-          );
+          ToastNotificationService.Show("CloudShot", "Screenshot copied to clipboard");
         }
       }
       catch (Exception ex)
@@ -215,39 +208,16 @@ namespace CloudShot
 
         if (result != null && result.UpdateAvailable)
         {
-          pendingUpdateUrl = result.ReleaseUrl;
-
-          trayIcon.BalloonTipClicked -= OnUpdateBalloonClicked;
-          trayIcon.BalloonTipClicked += OnUpdateBalloonClicked;
-
-          trayIcon.ShowBalloonTip(
-              5000,
+          ToastNotificationService.ShowWithUrl(
               "CloudShot",
               $"A new version ({result.LatestVersion}) is available. Click to download.",
-              ToolTipIcon.Info
+              result.ReleaseUrl
           );
         }
       }
       catch (Exception ex)
       {
         Console.WriteLine($"Error checking for updates: {ex.Message}");
-      }
-    }
-
-    private void OnUpdateBalloonClicked(object sender, EventArgs e)
-    {
-      if (string.IsNullOrEmpty(pendingUpdateUrl))
-      {
-        return;
-      }
-
-      try
-      {
-        Process.Start(new ProcessStartInfo(pendingUpdateUrl) { UseShellExecute = true });
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Error opening update URL: {ex.Message}");
       }
     }
 
@@ -264,10 +234,7 @@ namespace CloudShot
     /// <param name="message">Notification message</param>
     public void ShowNotification(string title, string message)
     {
-      if (trayIcon != null)
-      {
-        trayIcon.ShowBalloonTip(3000, title, message, ToolTipIcon.Info);
-      }
+      ToastNotificationService.Show(title, message);
     }
 
     protected override void Dispose(bool disposing)

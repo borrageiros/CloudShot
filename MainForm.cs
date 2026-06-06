@@ -78,7 +78,7 @@ namespace CloudShot
       ApplyStartupSetting(settings.StartWithWindows);
     }
 
-    private void ApplyStartupSetting(bool startWithWindows)
+    public static void ApplyStartupSetting(bool startWithWindows)
     {
       try
       {

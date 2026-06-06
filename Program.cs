@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace CloudShot
@@ -7,12 +8,11 @@ namespace CloudShot
 	static class Program
 	{
 		[STAThread]
-		static void Main()
+		static void Main(string[] args)
 		{
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 
-			// Check if the application icon exists, if not, generate it
 			string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
 			if (!File.Exists(iconPath))
 			{
@@ -27,8 +27,20 @@ namespace CloudShot
 				}
 			}
 
-			// Load or create the application configuration
 			AppSettings settings = AppSettings.Load();
+
+			if (args != null && args.Any(arg => string.Equals(arg, "--settings", StringComparison.OrdinalIgnoreCase)))
+			{
+				using (ConfigForm configForm = new ConfigForm(settings))
+				{
+					if (configForm.ShowDialog() == DialogResult.OK)
+					{
+						MainForm.ApplyStartupSetting(settings.StartWithWindows);
+					}
+				}
+
+				return;
+			}
 
 			Application.Run(new MainForm());
 		}

@@ -40,72 +40,9 @@ Name: "{autodesktop}\CloudShot"; Filename: "{app}\CloudShot.exe"; Tasks: desktop
 
 [Run]
 Filename: "{app}\CloudShot.exe"; Description: "Launch CloudShot"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\CloudShot.exe"; Parameters: "--settings"; Description: "Open configuration"; Flags: nowait postinstall skipifsilent
 
 [Code]
-var
-  ScpCommandPage: TInputQueryWizardPage;
-
-procedure InitializeWizard;
-begin
-  // Create page for SCP configuration
-  ScpCommandPage := CreateInputQueryPage(wpSelectDir, 
-    'SCP Configuration', 
-    'Configure SCP parameters (optional)',
-    'You can configure these values later from the application.');
-  
-  ScpCommandPage.Add('Host (user@server.com):', False);
-  ScpCommandPage.Add('Remote path (e.g. /var/www/screenshots/):', False);
-  ScpCommandPage.Add('SSH key file (optional):', False);
-  ScpCommandPage.Add('Text to copy (optional, use <image> as reference):', False);
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  SettingsPath: String;
-  SettingsFile: String;
-  ScpHost, ScpRemotePath, ScpKeyPath, ScpClipboard: String;
-begin
-  if CurStep = ssPostInstall then
-  begin
-    ScpHost := ScpCommandPage.Values[0];
-    ScpRemotePath := ScpCommandPage.Values[1];
-    ScpKeyPath := ScpCommandPage.Values[2];
-    ScpClipboard := ScpCommandPage.Values[3];
-    
-    if (ScpHost <> '') or (ScpClipboard <> '') then
-    begin
-      // Create settings folder
-      SettingsPath := ExpandConstant('{localappdata}\CloudShot');
-      if not DirExists(SettingsPath) then
-        CreateDir(SettingsPath);
-      
-      // Create basic settings file
-      SettingsFile := SettingsPath + '\settings.xml';
-      SaveStringToFile(SettingsFile,
-        '<?xml version="1.0"?>' + #13#10 +
-        '<AppSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">' + #13#10 +
-        '  <UndoShortcut>524346</UndoShortcut>' + #13#10 +
-        '  <SaveShortcut>524355</SaveShortcut>' + #13#10 +
-        '  <CopyShortcut>524339</CopyShortcut>' + #13#10 +
-        '  <CancelShortcut>27</CancelShortcut>' + #13#10 +
-        '  <OcrShortcut>524338</OcrShortcut>' + #13#10 +
-        '  <ScpShortcut>524344</ScpShortcut>' + #13#10 +
-        '  <ColorPickerShortcut>524342</ColorPickerShortcut>' + #13#10 +
-        '  <StartWithWindows>False</StartWithWindows>' + #13#10 +
-        '  <ScpHost>' + ScpHost + '</ScpHost>' + #13#10 +
-        '  <ScpPort>22</ScpPort>' + #13#10 +
-        '  <ScpRemotePath>' + ScpRemotePath + '</ScpRemotePath>' + #13#10 +
-        '  <ScpKeyPath>' + ScpKeyPath + '</ScpKeyPath>' + #13#10 +
-        '  <ScpKeyPassphrase></ScpKeyPassphrase>' + #13#10 +
-        '  <ScpClipboardText>' + ScpClipboard + '</ScpClipboardText>' + #13#10 +
-        '  <ColorFormat>RGB</ColorFormat>' + #13#10 +
-        '</AppSettings>', False);
-    end;
-  end;
-end;
-
-// Function to check if CloudShot is running
 function IsAppRunning(const FileName: string): Boolean;
 var
   FWMIService: Variant;

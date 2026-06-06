@@ -1,0 +1,15 @@
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\bin\Debug\net48\app.ico
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\bin\Debug\net48\CloudShot.exe.config
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\bin\Debug\net48\CloudShot.exe
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\bin\Debug\net48\CloudShot.pdb
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.csproj.AssemblyReference.cache
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.Properties.Resources.resources
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.csproj.GenerateResource.cache
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.AssemblyInfoInputs.cache
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.AssemblyInfo.cs
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.csproj.CoreCompileInputs.cache
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.sourcelink.json
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.exe
+C:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.pdb
+c:\Users\borrageiros\Desktop\PROYECTOS\CloudShot\obj\Debug\net48\CloudShot.exe.config

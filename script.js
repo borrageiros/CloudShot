@@ -1,6 +1,8 @@
 var repoOwner = "borrageiros";
 var repoName = "CloudShot";
 var apiUrl = "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/releases/latest";
+var readmeUrl = "https://raw.githubusercontent.com/" + repoOwner + "/" + repoName + "/main/README.md";
+var readmeSourceUrl = "https://github.com/" + repoOwner + "/" + repoName + "/blob/main/README.md";
 
 function selectAsset(assets, matcher) {
   for (var i = 0; i < assets.length; i++) {
@@ -40,6 +42,82 @@ function updateLink(elementId, asset, defaultHref, label) {
     el.href = defaultHref;
     el.textContent = label + " (GitHub latest release page)";
   }
+}
+
+function isHeading(line) {
+  return /^#{1,6}\s/.test(line);
+}
+
+function isDownloadHeading(line) {
+  return isHeading(line) && /download/i.test(line);
+}
+
+function stripReadmeForPage(markdown) {
+  var lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  var output = [];
+  var skipDownloadSection = false;
+  var skippedTitle = false;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+
+    if (!skippedTitle && /^#\s/.test(line)) {
+      skippedTitle = true;
+      continue;
+    }
+
+    if (isDownloadHeading(line)) {
+      skipDownloadSection = true;
+      continue;
+    }
+
+    if (skipDownloadSection) {
+      if (isHeading(line)) {
+        skipDownloadSection = false;
+        output.push(line);
+      }
+      continue;
+    }
+
+    output.push(line);
+  }
+
+  return output.join("\n").trim();
+}
+
+function enhanceReadmeLinks(container) {
+  var links = container.querySelectorAll("a[href^='http']");
+  for (var i = 0; i < links.length; i++) {
+    links[i].target = "_blank";
+    links[i].rel = "noopener noreferrer";
+  }
+}
+
+function initReadme() {
+  var container = document.getElementById("readme-content");
+  if (!container) {
+    return;
+  }
+
+  fetch(readmeUrl)
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error("Failed to fetch README");
+      }
+      return response.text();
+    })
+    .then(function (markdown) {
+      var trimmed = stripReadmeForPage(markdown);
+      container.innerHTML = marked.parse(trimmed);
+      container.classList.remove("loading");
+      enhanceReadmeLinks(container);
+    })
+    .catch(function () {
+      container.classList.remove("loading");
+      container.innerHTML =
+        '<p class="note">Could not load README automatically. ' +
+        '<a href="' + readmeSourceUrl + '" target="_blank" rel="noopener noreferrer">View on GitHub</a>.</p>';
+    });
 }
 
 function initDownloads() {
@@ -92,4 +170,7 @@ function initDownloads() {
     });
 }
 
-document.addEventListener("DOMContentLoaded", initDownloads);
+document.addEventListener("DOMContentLoaded", function () {
+  initDownloads();
+  initReadme();
+});

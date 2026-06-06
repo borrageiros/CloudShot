@@ -14,8 +14,7 @@ namespace CloudShot.Overlay
 		private const int HandleSize = 8;
 
 		private readonly SolidBrush dimBrush = new SolidBrush(Color.FromArgb(DimAlpha, 0, 0, 0));
-		private readonly Pen selectionBorderPen = new Pen(Color.Red, 1);
-		private readonly Pen rectangleSelectionBorderPen = new Pen(Color.Red, 2);
+		private readonly Pen selectionBorderPen = new Pen(Color.Red, 2);
 		private readonly Pen blackPen = new Pen(Color.Black, 1);
 		private readonly Pen whiteDashedPen;
 		private readonly Font titleFont = new Font("Segoe UI", 9f, FontStyle.Bold);
@@ -78,6 +77,22 @@ namespace CloudShot.Overlay
 				screenshot.Height,
 				GraphicsUnit.Pixel);
 
+			if (annotationLayer != null && !annotationLayer.Size.IsEmpty)
+			{
+				g.DrawImage(annotationLayer, screenshotClientRect);
+			}
+			else if (drawingElements != null && drawingElements.Count > 0)
+			{
+				g.TranslateTransform(screenshotClientRect.X, screenshotClientRect.Y);
+				ImageExporter.DrawElementsInImageSpace(g, drawingElements, screenshot);
+				g.ResetTransform();
+			}
+
+			if (inProgressDrawing != null)
+			{
+				ImageExporter.DrawElementPreview(g, inProgressDrawing, screenshot, mapper.OffsetX, mapper.OffsetY);
+			}
+
 			DrawDimOverlay(g, clientSelectionRect);
 
 			if (selectionRectangle.IsEmpty || selectionRectangle.Width <= 0 || selectionRectangle.Height <= 0)
@@ -100,24 +115,7 @@ namespace CloudShot.Overlay
 			}
 			else
 			{
-				Pen borderPen = currentDrawingMode == DrawingToolMode.Pen ? selectionBorderPen : rectangleSelectionBorderPen;
-				g.DrawRectangle(borderPen, screenRect);
-			}
-
-			if (annotationLayer != null && !annotationLayer.Size.IsEmpty)
-			{
-				g.DrawImage(annotationLayer, screenRect);
-			}
-			else if (drawingElements != null && drawingElements.Count > 0)
-			{
-				g.TranslateTransform(screenRect.X, screenRect.Y);
-				ImageExporter.DrawAnnotationsOnLayer(g, drawingElements, screenshot, selectionRectangle);
-				g.ResetTransform();
-			}
-
-			if (inProgressDrawing != null)
-			{
-				ImageExporter.DrawElementPreview(g, inProgressDrawing, clientSelectionRect, screenshot, selectionRectangle);
+				g.DrawRectangle(selectionBorderPen, screenRect);
 			}
 
 			if (resizeHandles != null && !isSelecting && !isMoveMode)
@@ -127,6 +125,16 @@ namespace CloudShot.Overlay
 					g.FillRectangle(Brushes.White, handle);
 					g.DrawRectangle(Pens.Black, handle);
 				}
+			}
+
+			if (currentDrawingMode == DrawingToolMode.Eraser &&
+			    !isMoveMode &&
+			    !lastMousePosition.IsEmpty &&
+			    !selectionRectangle.IsEmpty &&
+			    selectionRectangle.Width > 0 &&
+			    selectionRectangle.Height > 0)
+			{
+				DrawEraserPreview(g, lastMousePosition, AnnotationEraser.EraserRadius);
 			}
 		}
 
@@ -163,6 +171,16 @@ namespace CloudShot.Overlay
 		public static Rectangle GetStepInvalidationRect(Point center)
 		{
 			int padding = ImageExporter.StepCircleRadius + 4;
+			return new Rectangle(
+				center.X - padding,
+				center.Y - padding,
+				padding * 2,
+				padding * 2);
+		}
+
+		public static Rectangle GetEraserInvalidationRect(Point center, int radius)
+		{
+			int padding = radius + 4;
 			return new Rectangle(
 				center.X - padding,
 				center.Y - padding,
@@ -306,6 +324,31 @@ namespace CloudShot.Overlay
 			g.DrawLine(whiteDashedPen, x, y - 10, x, y + 10);
 		}
 
+		private static void DrawEraserPreview(Graphics g, Point center, int radius)
+		{
+			Rectangle circleBounds = new Rectangle(
+				center.X - radius,
+				center.Y - radius,
+				radius * 2,
+				radius * 2);
+
+			using (SolidBrush fillBrush = new SolidBrush(Color.FromArgb(56, 255, 255, 255)))
+			{
+				g.FillEllipse(fillBrush, circleBounds);
+			}
+
+			using (Pen outerPen = new Pen(Color.FromArgb(220, 255, 255, 255), 2f))
+			{
+				g.DrawEllipse(outerPen, circleBounds);
+			}
+
+			using (Pen innerPen = new Pen(Color.FromArgb(200, 30, 30, 30), 1f))
+			{
+				innerPen.DashStyle = DashStyle.Dot;
+				g.DrawEllipse(innerPen, circleBounds);
+			}
+		}
+
 		private static Rectangle InflateRect(Rectangle rect, int padding)
 		{
 			return new Rectangle(
@@ -320,7 +363,6 @@ namespace CloudShot.Overlay
 			screenshot = null;
 			dimBrush?.Dispose();
 			selectionBorderPen?.Dispose();
-			rectangleSelectionBorderPen?.Dispose();
 			blackPen?.Dispose();
 			whiteDashedPen?.Dispose();
 			titleFont?.Dispose();

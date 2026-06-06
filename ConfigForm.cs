@@ -45,6 +45,7 @@ namespace CloudShot
 		private HotkeyControl txtLineTool;
 		private HotkeyControl txtStepsTool;
 		private HotkeyControl txtTextTool;
+		private HotkeyControl txtEraserTool;
 		private HotkeyControl txtMoveTool;
 
 		private TextBox txtScpHost;
@@ -154,20 +155,21 @@ namespace CloudShot
 				Padding = new Padding(0, 16, 0, 8)
 			};
 
-			var toolsTable = BuildShortcutTable(11);
+			var toolsTable = BuildShortcutTable(12);
 			AddTableHeaderCell(toolsTable, 0, 0, "Tool");
 			AddTableHeaderCell(toolsTable, 0, 1, "Shortcut");
 
 			txtPenTool = AddTableShortcutRow(toolsTable, 1, "Pen");
-			txtRectangleTool = AddTableShortcutRow(toolsTable, 2, "Rectangle");
-			txtFilledRectangleTool = AddTableShortcutRow(toolsTable, 3, "Filled rectangle");
-			txtPixelateTool = AddTableShortcutRow(toolsTable, 4, "Pixelate");
-			txtArrowTool = AddTableShortcutRow(toolsTable, 5, "Arrow");
-			txtHighlighterTool = AddTableShortcutRow(toolsTable, 6, "Highlighter");
-			txtLineTool = AddTableShortcutRow(toolsTable, 7, "Line");
-			txtStepsTool = AddTableShortcutRow(toolsTable, 8, "Steps");
-			txtTextTool = AddTableShortcutRow(toolsTable, 9, "Text");
-			txtMoveTool = AddTableShortcutRow(toolsTable, 10, "Move selection");
+			txtEraserTool = AddTableShortcutRow(toolsTable, 2, "Eraser");
+			txtRectangleTool = AddTableShortcutRow(toolsTable, 3, "Rectangle");
+			txtFilledRectangleTool = AddTableShortcutRow(toolsTable, 4, "Filled rectangle");
+			txtPixelateTool = AddTableShortcutRow(toolsTable, 5, "Pixelate");
+			txtArrowTool = AddTableShortcutRow(toolsTable, 6, "Arrow");
+			txtHighlighterTool = AddTableShortcutRow(toolsTable, 7, "Highlighter");
+			txtLineTool = AddTableShortcutRow(toolsTable, 8, "Line");
+			txtStepsTool = AddTableShortcutRow(toolsTable, 9, "Steps");
+			txtTextTool = AddTableShortcutRow(toolsTable, 10, "Text");
+			txtMoveTool = AddTableShortcutRow(toolsTable, 11, "Move selection");
 
 			container.Controls.Add(toolsTable);
 			container.Controls.Add(toolsSection);
@@ -703,6 +705,7 @@ namespace CloudShot
 			var toolEntries = new[]
 			{
 				(CaptureToolbarAction.PenMode, "Pen"),
+				(CaptureToolbarAction.EraserMode, "Eraser"),
 				(CaptureToolbarAction.RectangleMode, "Rectangle"),
 				(CaptureToolbarAction.FilledRectangleMode, "Filled rectangle"),
 				(CaptureToolbarAction.PixelateMode, "Pixelate"),
@@ -959,6 +962,7 @@ namespace CloudShot
 			txtLineTool.Hotkey = settings.LineToolShortcut;
 			txtStepsTool.Hotkey = settings.StepsToolShortcut;
 			txtTextTool.Hotkey = settings.TextToolShortcut;
+			txtEraserTool.Hotkey = settings.EraserToolShortcut;
 			txtMoveTool.Hotkey = settings.MoveToolShortcut;
 
 			ApplyPlaceholder(txtScpHost, settings.ScpHost, ScpHostPlaceholder);
@@ -993,6 +997,7 @@ namespace CloudShot
 			SetToolCheckBox(CaptureToolbarAction.LineMode, settings.ToolLineEnabled);
 			SetToolCheckBox(CaptureToolbarAction.StepsMode, settings.ToolStepsEnabled);
 			SetToolCheckBox(CaptureToolbarAction.TextMode, settings.ToolTextEnabled);
+			SetToolCheckBox(CaptureToolbarAction.EraserMode, settings.ToolEraserEnabled);
 			SetToolCheckBox(CaptureToolbarAction.Move, settings.ToolMoveEnabled);
 			SetToolCheckBox(CaptureToolbarAction.ColorPicker, settings.ToolColorPickerEnabled);
 			SetToolCheckBox(CaptureToolbarAction.Undo, settings.ToolUndoEnabled);
@@ -1035,6 +1040,7 @@ namespace CloudShot
 			settings.LineToolShortcut = txtLineTool.Hotkey;
 			settings.StepsToolShortcut = txtStepsTool.Hotkey;
 			settings.TextToolShortcut = txtTextTool.Hotkey;
+			settings.EraserToolShortcut = txtEraserTool.Hotkey;
 			settings.MoveToolShortcut = txtMoveTool.Hotkey;
 
 			settings.ScpHost = GetTextBoxValue(txtScpHost);
@@ -1056,6 +1062,7 @@ namespace CloudShot
 			settings.ToolLineEnabled = GetToolCheckBox(CaptureToolbarAction.LineMode);
 			settings.ToolStepsEnabled = GetToolCheckBox(CaptureToolbarAction.StepsMode);
 			settings.ToolTextEnabled = GetToolCheckBox(CaptureToolbarAction.TextMode);
+			settings.ToolEraserEnabled = GetToolCheckBox(CaptureToolbarAction.EraserMode);
 			settings.ToolMoveEnabled = GetToolCheckBox(CaptureToolbarAction.Move);
 			settings.ToolColorPickerEnabled = GetToolCheckBox(CaptureToolbarAction.ColorPicker);
 			settings.ToolUndoEnabled = GetToolCheckBox(CaptureToolbarAction.Undo);
@@ -1064,7 +1071,7 @@ namespace CloudShot
 			settings.ToolOcrEnabled = GetToolCheckBox(CaptureToolbarAction.Ocr);
 			settings.ToolScpEnabled = GetToolCheckBox(CaptureToolbarAction.Scp);
 			settings.ToolCloseEnabled = GetToolCheckBox(CaptureToolbarAction.Close);
-			settings.SettingsVersion = 4;
+			settings.SettingsVersion = 5;
 
 			ApplyStartupSetting(settings.StartWithWindows);
 			settings.Save();

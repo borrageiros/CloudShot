@@ -31,6 +31,7 @@ namespace CloudShot
 		public Keys LineToolShortcut { get; set; }
 		public Keys StepsToolShortcut { get; set; }
 		public Keys TextToolShortcut { get; set; }
+		public Keys EraserToolShortcut { get; set; }
 		public Keys MoveToolShortcut { get; set; }
 
 		// Windows startup
@@ -61,6 +62,7 @@ namespace CloudShot
 		public bool ToolLineEnabled { get; set; }
 		public bool ToolStepsEnabled { get; set; }
 		public bool ToolTextEnabled { get; set; }
+		public bool ToolEraserEnabled { get; set; }
 		public bool ToolMoveEnabled { get; set; }
 		public bool ToolColorPickerEnabled { get; set; }
 		public bool ToolUndoEnabled { get; set; }
@@ -98,7 +100,7 @@ namespace CloudShot
 			ColorFormat = "RGB";
 			DefaultDrawingColor = "#FF0000";
 			ResetToolbarToolsToDefaults();
-			SettingsVersion = 4;
+			SettingsVersion = 5;
 		}
 
 		public void ResetToolShortcutsToDefaults()
@@ -112,6 +114,7 @@ namespace CloudShot
 			LineToolShortcut = Keys.L;
 			StepsToolShortcut = Keys.N;
 			TextToolShortcut = Keys.T;
+			EraserToolShortcut = Keys.E;
 			MoveToolShortcut = Keys.M;
 		}
 
@@ -126,6 +129,7 @@ namespace CloudShot
 			ToolLineEnabled = true;
 			ToolStepsEnabled = true;
 			ToolTextEnabled = true;
+			ToolEraserEnabled = true;
 			ToolMoveEnabled = true;
 			ToolColorPickerEnabled = true;
 			ToolUndoEnabled = true;
@@ -155,6 +159,14 @@ namespace CloudShot
 				if (PenToolShortcut == Keys.None)
 					ResetToolShortcutsToDefaults();
 				SettingsVersion = 4;
+			}
+
+			if (SettingsVersion < 5)
+			{
+				ToolEraserEnabled = true;
+				if (EraserToolShortcut == Keys.None)
+					EraserToolShortcut = Keys.E;
+				SettingsVersion = 5;
 			}
 		}
 

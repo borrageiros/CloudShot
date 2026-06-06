@@ -18,6 +18,7 @@ namespace CloudShot.Overlay
 		LineMode,
 		StepsMode,
 		TextMode,
+		EraserMode,
 		Move,
 		ColorPicker,
 		Undo,
@@ -46,6 +47,7 @@ namespace CloudShot.Overlay
 		private static readonly CaptureToolbarAction[] AllActions =
 		{
 			CaptureToolbarAction.PenMode,
+			CaptureToolbarAction.EraserMode,
 			CaptureToolbarAction.RectangleMode,
 			CaptureToolbarAction.FilledRectangleMode,
 			CaptureToolbarAction.PixelateMode,
@@ -104,6 +106,8 @@ namespace CloudShot.Overlay
 					return settings.ToolStepsEnabled;
 				case CaptureToolbarAction.TextMode:
 					return settings.ToolTextEnabled;
+				case CaptureToolbarAction.EraserMode:
+					return settings.ToolEraserEnabled;
 				case CaptureToolbarAction.Move:
 					return settings.ToolMoveEnabled;
 				case CaptureToolbarAction.ColorPicker:
@@ -137,6 +141,7 @@ namespace CloudShot.Overlay
 			shortcutLabels[(int)CaptureToolbarAction.LineMode] = FormatShortcut(settings.LineToolShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.StepsMode] = FormatShortcut(settings.StepsToolShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.TextMode] = FormatShortcut(settings.TextToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.EraserMode] = FormatShortcut(settings.EraserToolShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Move] = FormatShortcut(settings.MoveToolShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Undo] = FormatShortcut(settings.UndoShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Copy] = FormatShortcut(settings.CopyShortcut);
@@ -147,7 +152,7 @@ namespace CloudShot.Overlay
 		}
 
 		private readonly ToolTip toolTip = new ToolTip();
-		private readonly string[] shortcutLabels = new string[17];
+		private readonly string[] shortcutLabels = new string[18];
 
 		private DrawingToolMode currentDrawingMode = DrawingToolMode.Pen;
 		private bool isMoveMode;
@@ -453,6 +458,7 @@ namespace CloudShot.Overlay
 				case CaptureToolbarAction.LineMode:
 				case CaptureToolbarAction.StepsMode:
 				case CaptureToolbarAction.TextMode:
+				case CaptureToolbarAction.EraserMode:
 					return 0;
 				case CaptureToolbarAction.Move:
 				case CaptureToolbarAction.ColorPicker:
@@ -538,6 +544,8 @@ namespace CloudShot.Overlay
 					return currentDrawingMode == DrawingToolMode.Steps && !isMoveMode;
 				case CaptureToolbarAction.TextMode:
 					return currentDrawingMode == DrawingToolMode.Text && !isMoveMode;
+				case CaptureToolbarAction.EraserMode:
+					return currentDrawingMode == DrawingToolMode.Eraser && !isMoveMode;
 				case CaptureToolbarAction.Move:
 					return isMoveMode;
 				default:
@@ -630,6 +638,9 @@ namespace CloudShot.Overlay
 						{
 							g.DrawString("T", textFont, new SolidBrush(iconColor), cx - 5, cy - 9);
 						}
+						break;
+					case CaptureToolbarAction.EraserMode:
+						DrawToolbarEraserIcon(g, iconColor, cx, cy, active);
 						break;
 					case CaptureToolbarAction.Move:
 						g.DrawLine(pen, cx, cy - 9, cx, cy + 9);
@@ -731,6 +742,36 @@ namespace CloudShot.Overlay
 			}
 		}
 
+		private static void DrawToolbarEraserIcon(Graphics g, Color iconColor, int cx, int cy, bool active)
+		{
+			GraphicsState state = g.Save();
+			g.TranslateTransform(cx, cy);
+			g.RotateTransform(-32f);
+
+			Color sleeveColor = active ? Color.FromArgb(155, 155, 155) : Color.FromArgb(120, 120, 120);
+			Color outlineColor = active ? Color.FromArgb(235, 235, 235) : Color.FromArgb(190, 190, 190);
+			RectangleF sleeve = new RectangleF(-6.5f, -10f, 13f, 6.5f);
+			RectangleF rubber = new RectangleF(-7f, -3.5f, 14f, 10f);
+
+			using (SolidBrush rubberBrush = new SolidBrush(iconColor))
+			{
+				g.FillRectangle(rubberBrush, rubber);
+			}
+
+			using (SolidBrush sleeveBrush = new SolidBrush(sleeveColor))
+			{
+				g.FillRectangle(sleeveBrush, sleeve);
+			}
+
+			using (Pen outlinePen = new Pen(outlineColor, 1.5f))
+			{
+				g.DrawRectangle(outlinePen, sleeve.X, sleeve.Y, sleeve.Width, sleeve.Height);
+				g.DrawRectangle(outlinePen, rubber.X, rubber.Y, rubber.Width, rubber.Height);
+			}
+
+			g.Restore(state);
+		}
+
 		private static void DrawCenteredText(Graphics g, string text, Font font, Brush brush, Rectangle bounds)
 		{
 			using (StringFormat format = new StringFormat())
@@ -814,6 +855,8 @@ namespace CloudShot.Overlay
 					return "Steps";
 				case CaptureToolbarAction.TextMode:
 					return "Text";
+				case CaptureToolbarAction.EraserMode:
+					return "Eraser";
 				case CaptureToolbarAction.Move:
 					return "Move";
 				case CaptureToolbarAction.ColorPicker:

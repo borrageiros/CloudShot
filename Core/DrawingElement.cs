@@ -13,7 +13,8 @@ namespace CloudShot.Core
 		Highlighter,
 		Line,
 		Steps,
-		Text
+		Text,
+		Eraser
 	}
 
 	public class DrawingElement

@@ -93,6 +93,12 @@ namespace CloudShot.Overlay
 					return true;
 				}
 
+				if (MatchesShortcut(keyData, settings.EraserToolShortcut))
+				{
+					action = CaptureShortcutAction.EraserTool;
+					return true;
+				}
+
 				if (MatchesShortcut(keyData, settings.MoveToolShortcut))
 				{
 					action = CaptureShortcutAction.MoveTool;
@@ -160,6 +166,7 @@ namespace CloudShot.Overlay
 		LineTool,
 		StepsTool,
 		TextTool,
+		EraserTool,
 		MoveTool
 	}
 }

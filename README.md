@@ -15,7 +15,7 @@ Get the latest release from [download page](https://borrageiros.github.io/CloudS
 
 - Region capture across multiple monitors
 - Move and resize the selection before exporting
-- Drawing tools: pen, rectangle, filled rectangle, pixelate, arrow, highlighter, line, and numbered steps
+- Drawing tools: pen, rectangle, filled rectangle, pixelate, arrow, highlighter, line, numbered steps, text, and eraser
 - Configurable toolbar — show or hide each tool individually
 - Color picker with zoom preview (RGB, HEX, HSL)
 - OCR with clipboard copy
@@ -41,9 +41,11 @@ After selecting a region, use the floating toolbar to annotate:
 | Highlighter | Semi-transparent stroke to highlight an area |
 | Line | Straight line in the chosen drawing color |
 | Steps | Click to place numbered step markers (1, 2, 3, …) |
+| Text | Click to place editable text in the chosen drawing color |
+| Eraser | Drag over annotations to erase them (splits pen strokes, removes other shapes on contact) |
 | Move | Reposition the selection without changing its size |
 
-Set the drawing color with the **Color** button on the toolbar. **Move**, **Filled rectangle**, **Pixelate**, **Arrow**, **Highlighter**, **Line**, and **Steps** are toolbar-only (no keyboard shortcut).
+Set the drawing color with the **Color** button on the toolbar. Each drawing tool has a configurable keyboard shortcut in Settings.
 
 ### Default shortcuts
 
@@ -56,9 +58,20 @@ Set the drawing color with the **Color** button on the toolbar. **Move**, **Fill
 | OCR | `Ctrl+R` |
 | Upload via SCP | `Ctrl+X` |
 | Color picker | `Ctrl+V` |
+| Pen | `P` |
+| Rectangle | `R` |
+| Filled rectangle | `F` |
+| Pixelate | `X` |
+| Arrow | `A` |
+| Highlighter | `H` |
+| Line | `L` |
+| Steps | `N` |
+| Text | `T` |
+| Eraser | `E` |
+| Move selection | `M` |
 | Cancel | `Esc` |
 
-All overlay shortcuts can be changed in Settings. Toolbar-only tools have no default keyboard shortcut, but their actions still work via the toolbar when enabled.
+All overlay shortcuts can be changed in Settings.
 
 ## ⚙️ Settings
 
@@ -93,7 +106,7 @@ During capture, press `Ctrl+V`, move the cursor to pick a pixel, and click to co
 
 ### Drawing
 
-Set the default annotation color in **General → Drawing**. It applies to pen, rectangle, filled rectangle, arrow, highlighter, line, and steps.
+Set the default annotation color in **General → Drawing**. It applies to pen, rectangle, filled rectangle, arrow, highlighter, line, steps, and text.
 
 ## 📋 Requirements
 

@@ -20,26 +20,10 @@ namespace CloudShot.Export
 		public const float TextFontSize = 16f;
 		public const int PixelateBlockSize = 10;
 
-		public static Point ClientToLayer(Point clientPoint, Rectangle clientSelectionRect)
-		{
-			return new Point(
-				clientPoint.X - clientSelectionRect.X,
-				clientPoint.Y - clientSelectionRect.Y);
-		}
-
-		public static Point LayerToClient(Point layerPoint, Rectangle clientSelectionRect)
-		{
-			return new Point(
-				layerPoint.X + clientSelectionRect.X,
-				layerPoint.Y + clientSelectionRect.Y);
-		}
-
 		public static Bitmap RenderSelection(
 			Bitmap screenshot,
 			Rectangle selectionRectangle,
 			IReadOnlyList<DrawingElement> drawingElements,
-			int offsetX,
-			int offsetY,
 			bool includeAnnotations = true)
 		{
 			int x = Math.Max(0, selectionRectangle.X);
@@ -69,43 +53,65 @@ namespace CloudShot.Export
 
 				if (includeAnnotations && drawingElements != null)
 				{
-					DrawAnnotations(g, drawingElements, screenshot, selectionRectangle, validRect);
+					foreach (DrawingElement element in drawingElements)
+					{
+						DrawElementCore(g, element, screenshot, validRect.Location);
+					}
 				}
 			}
 
 			return output;
 		}
 
-		public static void DrawAnnotations(
+		public static void DrawElementsInImageSpace(
 			Graphics g,
 			IReadOnlyList<DrawingElement> drawingElements,
-			Bitmap screenshot,
-			Rectangle selectionRectangle,
-			Rectangle validRect)
+			Bitmap screenshot)
 		{
+			if (drawingElements == null)
+			{
+				return;
+			}
+
 			foreach (DrawingElement element in drawingElements)
 			{
-				DrawElement(g, element, screenshot, selectionRectangle, validRect);
+				DrawElementCore(g, element, screenshot, Point.Empty);
 			}
 		}
 
-		public static void DrawAnnotationsOnLayer(
+		public static void DrawElementInImageSpace(
 			Graphics g,
-			IReadOnlyList<DrawingElement> drawingElements,
-			Bitmap screenshot,
-			Rectangle selectionRectangle)
+			DrawingElement element,
+			Bitmap screenshot)
 		{
-			foreach (DrawingElement element in drawingElements)
-			{
-				DrawElementOnLayer(g, element, screenshot, selectionRectangle);
-			}
+			DrawElementCore(g, element, screenshot, Point.Empty);
 		}
 
-		public static void DrawElementOnLayer(
+		public static void DrawElementPreview(
 			Graphics g,
 			DrawingElement element,
 			Bitmap screenshot,
-			Rectangle selectionRectangle)
+			int offsetX,
+			int offsetY)
+		{
+			if (element == null || element.Points == null || element.Points.Count == 0 || element.IsPenMode)
+			{
+				return;
+			}
+
+			if (element.Mode == DrawingToolMode.Steps || element.Mode == DrawingToolMode.Text)
+			{
+				return;
+			}
+
+			DrawElementCore(g, element, screenshot, new Point(-offsetX, -offsetY));
+		}
+
+		private static void DrawElementCore(
+			Graphics g,
+			DrawingElement element,
+			Bitmap screenshot,
+			Point origin)
 		{
 			if (element.Points == null || element.Points.Count == 0)
 			{
@@ -114,13 +120,13 @@ namespace CloudShot.Export
 
 			if (element.Mode == DrawingToolMode.Steps)
 			{
-				DrawStepMarker(g, element.Points[0], element.StepNumber, element.DrawingColor);
+				DrawStepMarker(g, Map(element.Points[0], origin), element.StepNumber, element.DrawingColor);
 				return;
 			}
 
 			if (element.Mode == DrawingToolMode.Text)
 			{
-				DrawTextAnnotation(g, element.Points[0], element.Text, element.DrawingColor);
+				DrawTextAnnotation(g, Map(element.Points[0], origin), element.Text, element.DrawingColor);
 				return;
 			}
 
@@ -135,7 +141,7 @@ namespace CloudShot.Export
 				{
 					for (int i = 0; i < element.Points.Count - 1; i++)
 					{
-						g.DrawLine(elementPen, element.Points[i], element.Points[i + 1]);
+						g.DrawLine(elementPen, Map(element.Points[i], origin), Map(element.Points[i + 1], origin));
 					}
 				}
 
@@ -144,8 +150,8 @@ namespace CloudShot.Export
 
 			if (element.IsTwoPointDragMode && element.Points.Count >= 2)
 			{
-				Point p1 = element.Points[0];
-				Point p2 = element.Points[1];
+				Point p1 = Map(element.Points[0], origin);
+				Point p2 = Map(element.Points[1], origin);
 				switch (element.Mode)
 				{
 					case DrawingToolMode.Arrow:
@@ -165,99 +171,34 @@ namespace CloudShot.Export
 				}
 			}
 
-			Rectangle layerRect = GetLayerRectangle(element);
-			if (layerRect.Width <= 0 || layerRect.Height <= 0)
+			Rectangle imageRect = GetImageRectangle(element);
+			if (imageRect.Width <= 0 || imageRect.Height <= 0)
 			{
 				return;
 			}
+
+			Rectangle targetRect = new Rectangle(
+				imageRect.X - origin.X,
+				imageRect.Y - origin.Y,
+				imageRect.Width,
+				imageRect.Height);
 
 			switch (element.Mode)
 			{
 				case DrawingToolMode.Rectangle:
 					using (Pen elementPen = new Pen(element.DrawingColor, DrawingPenSize))
 					{
-						g.DrawRectangle(elementPen, layerRect);
+						g.DrawRectangle(elementPen, targetRect);
 					}
 					break;
 				case DrawingToolMode.FilledRectangle:
 					using (SolidBrush brush = new SolidBrush(element.DrawingColor))
 					{
-						g.FillRectangle(brush, layerRect);
+						g.FillRectangle(brush, targetRect);
 					}
 					break;
 				case DrawingToolMode.Pixelate:
-					DrawPixelatedRegion(g, screenshot, selectionRectangle, layerRect, layerRect.Location);
-					break;
-			}
-		}
-
-		public static void DrawElementPreview(
-			Graphics g,
-			DrawingElement element,
-			Rectangle clientSelectionRect,
-			Bitmap screenshot,
-			Rectangle selectionRectangle)
-		{
-			if (element == null || element.Points == null || element.Points.Count == 0 || element.IsPenMode)
-			{
-				return;
-			}
-
-			if (element.Mode == DrawingToolMode.Steps)
-			{
-				return;
-			}
-
-			if (!element.IsRectangleToolMode && element.Points.Count >= 2)
-			{
-				Point clientStart = LayerToClient(element.Points[0], clientSelectionRect);
-				Point clientEnd = LayerToClient(element.Points[1], clientSelectionRect);
-				switch (element.Mode)
-				{
-					case DrawingToolMode.Arrow:
-						DrawArrow(g, clientStart, clientEnd, element.DrawingColor);
-						break;
-					case DrawingToolMode.Highlighter:
-						DrawHighlighterLine(g, clientStart, clientEnd, element.DrawingColor);
-						break;
-					case DrawingToolMode.Line:
-						DrawStraightLine(g, clientStart, clientEnd, element.DrawingColor);
-						break;
-				}
-
-				return;
-			}
-
-			if (element.Points.Count <= 1)
-			{
-				return;
-			}
-
-			Rectangle layerRect = GetLayerRectangle(element);
-			if (layerRect.Width <= 0 || layerRect.Height <= 0)
-			{
-				return;
-			}
-
-			Point clientOrigin = LayerToClient(layerRect.Location, clientSelectionRect);
-			Rectangle clientRect = new Rectangle(clientOrigin, layerRect.Size);
-
-			switch (element.Mode)
-			{
-				case DrawingToolMode.Rectangle:
-					using (Pen elementPen = new Pen(element.DrawingColor, DrawingPenSize))
-					{
-						g.DrawRectangle(elementPen, clientRect);
-					}
-					break;
-				case DrawingToolMode.FilledRectangle:
-					using (SolidBrush brush = new SolidBrush(element.DrawingColor))
-					{
-						g.FillRectangle(brush, clientRect);
-					}
-					break;
-				case DrawingToolMode.Pixelate:
-					DrawPixelatedRegion(g, screenshot, selectionRectangle, layerRect, clientRect.Location);
+					DrawPixelatedRegion(g, screenshot, imageRect, origin);
 					break;
 			}
 		}
@@ -285,103 +226,6 @@ namespace CloudShot.Export
 			}
 		}
 
-		private static void DrawElement(
-			Graphics g,
-			DrawingElement element,
-			Bitmap screenshot,
-			Rectangle selectionRectangle,
-			Rectangle validRect)
-		{
-			if (element.Points == null || element.Points.Count == 0)
-			{
-				return;
-			}
-
-			if (element.Mode == DrawingToolMode.Steps)
-			{
-				Point exportPoint = LayerToExportPoint(element.Points[0], selectionRectangle, validRect);
-				DrawStepMarker(g, exportPoint, element.StepNumber, element.DrawingColor);
-				return;
-			}
-
-			if (element.Mode == DrawingToolMode.Text)
-			{
-				Point exportPoint = LayerToExportPoint(element.Points[0], selectionRectangle, validRect);
-				DrawTextAnnotation(g, exportPoint, element.Text, element.DrawingColor);
-				return;
-			}
-
-			if (element.IsPenMode)
-			{
-				if (element.Points.Count <= 1)
-				{
-					return;
-				}
-
-				using (Pen elementPen = new Pen(element.DrawingColor, DrawingPenSize))
-				{
-					for (int i = 0; i < element.Points.Count - 1; i++)
-					{
-						Point p1 = LayerToExportPoint(element.Points[i], selectionRectangle, validRect);
-						Point p2 = LayerToExportPoint(element.Points[i + 1], selectionRectangle, validRect);
-						g.DrawLine(elementPen, p1, p2);
-					}
-				}
-
-				return;
-			}
-
-			if (element.IsTwoPointDragMode && element.Points.Count >= 2)
-			{
-				Point p1 = LayerToExportPoint(element.Points[0], selectionRectangle, validRect);
-				Point p2 = LayerToExportPoint(element.Points[1], selectionRectangle, validRect);
-				switch (element.Mode)
-				{
-					case DrawingToolMode.Arrow:
-						DrawArrow(g, p1, p2, element.DrawingColor);
-						break;
-					case DrawingToolMode.Highlighter:
-						DrawHighlighterLine(g, p1, p2, element.DrawingColor);
-						break;
-					case DrawingToolMode.Line:
-						DrawStraightLine(g, p1, p2, element.DrawingColor);
-						break;
-				}
-
-				if (!element.IsRectangleToolMode)
-				{
-					return;
-				}
-			}
-
-			Rectangle layerRect = GetLayerRectangle(element);
-			if (layerRect.Width <= 0 || layerRect.Height <= 0)
-			{
-				return;
-			}
-
-			Rectangle exportRect = LayerRectToExportRect(layerRect, selectionRectangle, validRect);
-
-			switch (element.Mode)
-			{
-				case DrawingToolMode.Rectangle:
-					using (Pen elementPen = new Pen(element.DrawingColor, DrawingPenSize))
-					{
-						g.DrawRectangle(elementPen, exportRect);
-					}
-					break;
-				case DrawingToolMode.FilledRectangle:
-					using (SolidBrush brush = new SolidBrush(element.DrawingColor))
-					{
-						g.FillRectangle(brush, exportRect);
-					}
-					break;
-				case DrawingToolMode.Pixelate:
-					DrawPixelatedRegion(g, screenshot, selectionRectangle, layerRect, exportRect.Location, validRect);
-					break;
-			}
-		}
-
 		public static Rectangle GetTwoPointDragInvalidationRect(Point start, Point end, DrawingToolMode mode)
 		{
 			switch (mode)
@@ -395,6 +239,11 @@ namespace CloudShot.Export
 				default:
 					return GetSegmentInvalidationRect(start, end, DrawingPenSize);
 			}
+		}
+
+		private static Point Map(Point point, Point origin)
+		{
+			return new Point(point.X - origin.X, point.Y - origin.Y);
 		}
 
 		private static Rectangle GetSegmentInvalidationRect(Point start, Point end, int padding)
@@ -573,7 +422,7 @@ namespace CloudShot.Export
 			return luminance > 140 ? Color.Black : Color.White;
 		}
 
-		private static Rectangle GetLayerRectangle(DrawingElement element)
+		private static Rectangle GetImageRectangle(DrawingElement element)
 		{
 			Point p1 = element.Points[0];
 			Point p2 = element.Points[1];
@@ -584,70 +433,24 @@ namespace CloudShot.Export
 				Math.Abs(p1.Y - p2.Y));
 		}
 
-		private static Rectangle LayerRectToImageRect(Rectangle layerRect, Rectangle selectionRectangle)
-		{
-			return new Rectangle(
-				layerRect.X + selectionRectangle.X,
-				layerRect.Y + selectionRectangle.Y,
-				layerRect.Width,
-				layerRect.Height);
-		}
-
-		private static Rectangle LayerRectToExportRect(Rectangle layerRect, Rectangle selectionRectangle, Rectangle validRect)
-		{
-			return new Rectangle(
-				layerRect.X + selectionRectangle.X - validRect.X,
-				layerRect.Y + selectionRectangle.Y - validRect.Y,
-				layerRect.Width,
-				layerRect.Height);
-		}
-
-		private static Point LayerToExportPoint(Point layerPoint, Rectangle selectionRectangle, Rectangle validRect)
-		{
-			return new Point(
-				layerPoint.X + selectionRectangle.X - validRect.X,
-				layerPoint.Y + selectionRectangle.Y - validRect.Y);
-		}
-
 		private static void DrawPixelatedRegion(
 			Graphics g,
 			Bitmap screenshot,
-			Rectangle selectionRectangle,
-			Rectangle layerRect,
-			Point drawLocation)
+			Rectangle imageRect,
+			Point origin)
 		{
-			DrawPixelatedRegion(g, screenshot, selectionRectangle, layerRect, drawLocation, Rectangle.Empty);
-		}
-
-		private static void DrawPixelatedRegion(
-			Graphics g,
-			Bitmap screenshot,
-			Rectangle selectionRectangle,
-			Rectangle layerRect,
-			Point drawLocation,
-			Rectangle validRect)
-		{
-			if (screenshot == null || layerRect.Width <= 0 || layerRect.Height <= 0)
+			if (screenshot == null || imageRect.Width <= 0 || imageRect.Height <= 0)
 			{
 				return;
 			}
 
-			Rectangle imageRect = LayerRectToImageRect(layerRect, selectionRectangle);
-			if (!validRect.IsEmpty)
+			Rectangle clipped = Rectangle.Intersect(imageRect, new Rectangle(0, 0, screenshot.Width, screenshot.Height));
+			if (clipped.Width <= 0 || clipped.Height <= 0)
 			{
-				imageRect = Rectangle.Intersect(imageRect, validRect);
-				if (imageRect.Width <= 0 || imageRect.Height <= 0)
-				{
-					return;
-				}
-
-				int offsetX = imageRect.X - (layerRect.X + selectionRectangle.X);
-				int offsetY = imageRect.Y - (layerRect.Y + selectionRectangle.Y);
-				drawLocation = new Point(drawLocation.X + offsetX, drawLocation.Y + offsetY);
-				layerRect = new Rectangle(layerRect.X + offsetX, layerRect.Y + offsetY, imageRect.Width, imageRect.Height);
+				return;
 			}
 
-			using (Bitmap pixelated = CreatePixelatedRegion(screenshot, imageRect, PixelateBlockSize))
+			using (Bitmap pixelated = CreatePixelatedRegion(screenshot, clipped, PixelateBlockSize))
 			{
 				if (pixelated == null)
 				{
@@ -656,7 +459,8 @@ namespace CloudShot.Export
 
 				g.InterpolationMode = InterpolationMode.NearestNeighbor;
 				g.PixelOffsetMode = PixelOffsetMode.Half;
-				g.DrawImage(pixelated, new Rectangle(drawLocation, layerRect.Size));
+				Point drawLocation = new Point(clipped.X - origin.X, clipped.Y - origin.Y);
+				g.DrawImage(pixelated, new Rectangle(drawLocation, clipped.Size));
 			}
 		}
 
@@ -694,4 +498,3 @@ namespace CloudShot.Export
 		}
 	}
 }
-

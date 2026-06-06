@@ -31,6 +31,11 @@ namespace CloudShot.Core
 			return new Point(clientPoint.X - OffsetX, clientPoint.Y - OffsetY);
 		}
 
+		public Point ToClientPoint(Point imagePoint)
+		{
+			return new Point(imagePoint.X + OffsetX, imagePoint.Y + OffsetY);
+		}
+
 		public Rectangle CalculateSelectionRectangle(Point startPoint, Point endPoint)
 		{
 			int x = System.Math.Min(startPoint.X, endPoint.X);

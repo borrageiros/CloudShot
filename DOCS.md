@@ -10,7 +10,9 @@ Quick reference for developers working on this codebase.
 
 
 
-CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations (pen, rectangle, filled rectangle, pixelate, arrow, highlighter, line, steps, text), color picker, OCR, and SCP upload. It runs in the background and is triggered via `PrintScreen` or the tray icon.
+CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations (pen, rectangle, filled rectangle, pixelate, arrow, highlighter, line, steps, text, eraser), color picker, OCR, and SCP upload. It runs in the background and is triggered via `PrintScreen` or the tray icon.
+
+Annotations are drawn on the **screen canvas** (image space): they can be placed anywhere on the screen once a selection exists, stay anchored to the screen regardless of selection move/resize, and are clipped to the selection on export. Areas outside the selection (including any annotations there) are dimmed.
 
 
 
@@ -100,6 +102,8 @@ Program.Main
 
 | `DrawingElement.cs` | Annotation model (`Points`, `DrawingToolMode`, `DrawingColor`, `StepNumber`, `Text`) |
 
+| `AnnotationEraser.cs` | Eraser hit-testing and annotation removal (pen stroke splitting, shape/text/step deletion) |
+
 | `BitmapPixelReader.cs` | Fast pixel read via `LockBits` (color picker) |
 
 | `ScpUploadService.cs` | Runs the built-in `scp` (OpenSSH) to upload a file with SSH key auth; resolves host/user from `~/.ssh/config` |
@@ -156,7 +160,7 @@ Program.Main
 
 | **Region selection** | `ScreenshotOverlay.cs`, `Core/CoordinateMapper.cs` | Drag to select; resize handles after selection |
 
-| **Move selection** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs`, `Overlay/OverlayRenderer.cs` | Toolbar **Move** tool; drag inside selection to reposition with fixed width/height; annotations move with selection; no keyboard shortcut |
+| **Move selection** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs`, `Overlay/OverlayRenderer.cs` | Toolbar **Move** tool; drag inside selection to reposition with fixed width/height; annotations are anchored to the screen and do **not** move/resize with the selection; no keyboard shortcut |
 
 | **Pen / rectangle drawing** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | `DrawingToolMode.Pen` / `Rectangle`; disabled while `isMoveMode` is active |
 
@@ -173,6 +177,8 @@ Program.Main
 | **Steps** | `ScreenshotOverlay.cs`, `Export/ImageExporter.cs` | Toolbar-only; click to place numbered circles; auto-increments `StepNumber` on `DrawingElement` |
 
 | **Text** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | Toolbar-only; click to open inline editor; `Enter` or blur commits; `Esc` cancels; stored in `DrawingElement.Text` |
+
+| **Eraser** | `ScreenshotOverlay.cs`, `Core/AnnotationEraser.cs` | Drag to erase annotations; splits pen strokes; removes shapes, arrows, steps, and text on contact; default shortcut `E`; `AnnotationEraser.EraserRadius = 12` |
 
 | **Floating toolbar** | `Overlay/CaptureToolbar.cs` | Appears near selection; emits `ActionRequested`; size adapts to visible tools |
 
@@ -230,11 +236,33 @@ Program.Main
 
 | Color picker | `Ctrl+V` |
 
+| Pen tool | `P` |
+
+| Rectangle tool | `R` |
+
+| Filled rectangle tool | `F` |
+
+| Pixelate tool | `X` |
+
+| Arrow tool | `A` |
+
+| Highlighter tool | `H` |
+
+| Line tool | `L` |
+
+| Steps tool | `N` |
+
+| Text tool | `T` |
+
+| Eraser tool | `E` |
+
+| Move selection | `M` |
+
 | Cancel / close overlay | `Esc` |
 
 
 
-All overlay shortcuts are customizable in `ConfigForm` and stored in `AppSettings`. **Move**, **Filled rectangle**, **Pixelate**, **Arrow**, **Highlighter**, **Line**, **Steps**, and **Text** are toolbar-only (no default keyboard shortcut).
+All overlay shortcuts are customizable in `ConfigForm` and stored in `AppSettings`. Each drawing tool has a configurable shortcut (defaults below).
 
 
 
@@ -250,7 +278,7 @@ All overlay shortcuts are customizable in `ConfigForm` and stored in `AppSetting
 
 // Annotation modes
 
-DrawingToolMode { Pen, Rectangle, FilledRectangle, Pixelate, Arrow, Highlighter, Line, Steps, Text }
+DrawingToolMode { Pen, Rectangle, FilledRectangle, Pixelate, Arrow, Highlighter, Line, Steps, Text, Eraser }
 
 
 
@@ -266,7 +294,7 @@ CaptureToolbar.ActionRequested → CaptureToolbarAction (
 
   PenMode, RectangleMode, FilledRectangleMode, PixelateMode,
 
-  ArrowMode, HighlighterMode, LineMode, StepsMode, TextMode,
+  ArrowMode, HighlighterMode, LineMode, StepsMode, TextMode, EraserMode,
 
   Move, ColorPicker, Undo, Copy, Save, Ocr, Scp, Close)
 
@@ -292,7 +320,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 - **UI framework:** WinForms only; overlay is a borderless fullscreen `Form` with `TopMost = true`
 
-- **Coordinates:** Always go through `CoordinateMapper` when converting between screen, client, and image space
+- **Coordinates:** `DrawingElement.Points` are stored in **image space** (relative to the captured screenshot, independent of the selection). Always go through `CoordinateMapper` (`ToImagePoint` / `ToClientPoint` / `ToClientRect`) when converting between screen, client, and image space
 
 - **Rendering:** Live overlay uses `OverlayRenderer`; final export uses `ImageExporter.RenderSelection`
 
@@ -316,7 +344,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 | Change capture behavior | `ScreenshotOverlay.cs` |
 
-| Change move-selection behavior | `ScreenshotOverlay.cs` (`MoveSelection`, `TranslateDrawingElements`) |
+| Change move-selection behavior | `ScreenshotOverlay.cs` (`MoveSelection`); annotations are screen-anchored and not translated |
 
 | Add toolbar button | `Overlay/CaptureToolbar.cs` + `AppSettings.cs` + `ConfigForm.cs` + handle in `ScreenshotOverlay.cs` |
 
@@ -380,7 +408,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 - SCP toolbar button requires both `ToolScpEnabled` and a non-empty `ScpHost`
 
-- `AppSettings.SettingsVersion` migrates older settings files (v2 adds toolbar tool booleans, all enabled by default; v3 adds `ToolTextEnabled`)
+- `AppSettings.SettingsVersion` migrates older settings files (v2 adds toolbar tool booleans, all enabled by default; v3 adds `ToolTextEnabled`; v4 adds tool keyboard shortcuts; v5 adds `ToolEraserEnabled` and `EraserToolShortcut`, default `E`)
 
 - `Properties/Resources.resx` exists but is not used by capture logic
 

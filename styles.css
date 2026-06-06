@@ -178,6 +178,15 @@ h2 {
   margin: 0 0 10px 0;
 }
 
+.readme img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  border: 1px solid #dddddd;
+  border-radius: 4px;
+}
+
 .readme ul,
 .readme ol {
   margin: 0 0 12px 0;

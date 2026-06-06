@@ -13,6 +13,11 @@ namespace CloudShot.Overlay
 		RectangleMode,
 		FilledRectangleMode,
 		PixelateMode,
+		ArrowMode,
+		HighlighterMode,
+		LineMode,
+		StepsMode,
+		TextMode,
 		Move,
 		ColorPicker,
 		Undo,
@@ -37,14 +42,18 @@ namespace CloudShot.Overlay
 		private const int PaddingHorizontal = 10;
 		private const int PaddingVertical = 8;
 		private const int CornerRadius = 10;
-		private const int FadeDurationMs = 150;
 
-		private readonly CaptureToolbarAction[] actions =
+		private static readonly CaptureToolbarAction[] AllActions =
 		{
 			CaptureToolbarAction.PenMode,
 			CaptureToolbarAction.RectangleMode,
 			CaptureToolbarAction.FilledRectangleMode,
 			CaptureToolbarAction.PixelateMode,
+			CaptureToolbarAction.ArrowMode,
+			CaptureToolbarAction.HighlighterMode,
+			CaptureToolbarAction.LineMode,
+			CaptureToolbarAction.StepsMode,
+			CaptureToolbarAction.TextMode,
 			CaptureToolbarAction.Move,
 			CaptureToolbarAction.ColorPicker,
 			CaptureToolbarAction.Undo,
@@ -55,9 +64,80 @@ namespace CloudShot.Overlay
 			CaptureToolbarAction.Close
 		};
 
+		private readonly List<CaptureToolbarAction> visibleActions = new List<CaptureToolbarAction>();
+
+		public void ConfigureVisibleTools(AppSettings settings)
+		{
+			visibleActions.Clear();
+			foreach (CaptureToolbarAction action in AllActions)
+			{
+				if (IsToolEnabled(settings, action))
+				{
+					visibleActions.Add(action);
+				}
+			}
+
+			Size = CalculateSize();
+			UpdateRegion();
+			Invalidate();
+		}
+
+		private static bool IsToolEnabled(AppSettings settings, CaptureToolbarAction action)
+		{
+			switch (action)
+			{
+				case CaptureToolbarAction.PenMode:
+					return settings.ToolPenEnabled;
+				case CaptureToolbarAction.RectangleMode:
+					return settings.ToolRectangleEnabled;
+				case CaptureToolbarAction.FilledRectangleMode:
+					return settings.ToolFilledRectangleEnabled;
+				case CaptureToolbarAction.PixelateMode:
+					return settings.ToolPixelateEnabled;
+				case CaptureToolbarAction.ArrowMode:
+					return settings.ToolArrowEnabled;
+				case CaptureToolbarAction.HighlighterMode:
+					return settings.ToolHighlighterEnabled;
+				case CaptureToolbarAction.LineMode:
+					return settings.ToolLineEnabled;
+				case CaptureToolbarAction.StepsMode:
+					return settings.ToolStepsEnabled;
+				case CaptureToolbarAction.TextMode:
+					return settings.ToolTextEnabled;
+				case CaptureToolbarAction.Move:
+					return settings.ToolMoveEnabled;
+				case CaptureToolbarAction.ColorPicker:
+					return settings.ToolColorPickerEnabled;
+				case CaptureToolbarAction.Undo:
+					return settings.ToolUndoEnabled;
+				case CaptureToolbarAction.Copy:
+					return settings.ToolCopyEnabled;
+				case CaptureToolbarAction.Save:
+					return settings.ToolSaveEnabled;
+				case CaptureToolbarAction.Ocr:
+					return settings.ToolOcrEnabled;
+				case CaptureToolbarAction.Scp:
+					return settings.ToolScpEnabled && !string.IsNullOrWhiteSpace(settings.ScpHost);
+				case CaptureToolbarAction.Close:
+					return settings.ToolCloseEnabled;
+				default:
+					return true;
+			}
+		}
+
 		public void ConfigureShortcuts(AppSettings settings)
 		{
 			toolTip.SetToolTip(this, string.Empty);
+			shortcutLabels[(int)CaptureToolbarAction.PenMode] = FormatShortcut(settings.PenToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.RectangleMode] = FormatShortcut(settings.RectangleToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.FilledRectangleMode] = FormatShortcut(settings.FilledRectangleToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.PixelateMode] = FormatShortcut(settings.PixelateToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.ArrowMode] = FormatShortcut(settings.ArrowToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.HighlighterMode] = FormatShortcut(settings.HighlighterToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.LineMode] = FormatShortcut(settings.LineToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.StepsMode] = FormatShortcut(settings.StepsToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.TextMode] = FormatShortcut(settings.TextToolShortcut);
+			shortcutLabels[(int)CaptureToolbarAction.Move] = FormatShortcut(settings.MoveToolShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Undo] = FormatShortcut(settings.UndoShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Copy] = FormatShortcut(settings.CopyShortcut);
 			shortcutLabels[(int)CaptureToolbarAction.Save] = FormatShortcut(settings.SaveShortcut);
@@ -67,16 +147,13 @@ namespace CloudShot.Overlay
 		}
 
 		private readonly ToolTip toolTip = new ToolTip();
-		private readonly string[] shortcutLabels = new string[12];
-		private readonly Timer fadeTimer = new Timer();
+		private readonly string[] shortcutLabels = new string[17];
 
 		private DrawingToolMode currentDrawingMode = DrawingToolMode.Pen;
 		private bool isMoveMode;
 		private ToolbarOrientation orientation = ToolbarOrientation.Horizontal;
 		private Color drawingColor = Color.Red;
 		private int hoveredIndex = -1;
-		private int fadeAlpha;
-		private bool fadingIn;
 
 		public event EventHandler<CaptureToolbarAction> ActionRequested;
 
@@ -89,13 +166,12 @@ namespace CloudShot.Overlay
 			         ControlStyles.SupportsTransparentBackColor, true);
 
 			BackColor = Color.Transparent;
+			visibleActions.AddRange(AllActions);
 			Size = CalculateSize();
 			Visible = false;
 
-			fadeTimer.Interval = 16;
-			fadeTimer.Tick += FadeTimerTick;
-
 			ConfigureTooltips();
+			UpdateRegion();
 		}
 
 		public void SetDrawingMode(DrawingToolMode mode)
@@ -124,18 +200,12 @@ namespace CloudShot.Overlay
 
 		public void ShowAnimated()
 		{
-			fadeAlpha = 0;
-			fadingIn = true;
 			Visible = true;
-			fadeTimer.Start();
 			Invalidate();
 		}
 
 		public void HideImmediate()
 		{
-			fadeTimer.Stop();
-			fadingIn = false;
-			fadeAlpha = 0;
 			Visible = false;
 		}
 
@@ -167,10 +237,10 @@ namespace CloudShot.Overlay
 				Invalidate();
 			}
 
-			if (index >= 0)
+			if (index >= 0 && index < visibleActions.Count)
 			{
-				string shortcut = shortcutLabels[index];
-				string label = GetActionLabel(actions[index]);
+				string shortcut = shortcutLabels[(int)visibleActions[index]];
+				string label = GetActionLabel(visibleActions[index]);
 				toolTip.SetToolTip(this, string.IsNullOrEmpty(shortcut) ? label : $"{label} ({shortcut})");
 			}
 		}
@@ -191,14 +261,42 @@ namespace CloudShot.Overlay
 			}
 
 			int index = HitTest(e.Location);
-			if (index >= 0)
+			if (index >= 0 && index < visibleActions.Count)
 			{
-				ActionRequested?.Invoke(this, actions[index]);
+				ActionRequested?.Invoke(this, visibleActions[index]);
 			}
+		}
+
+		protected override void OnSizeChanged(EventArgs e)
+		{
+			base.OnSizeChanged(e);
+			UpdateRegion();
 		}
 
 		protected override void OnPaintBackground(PaintEventArgs pevent)
 		{
+			if (Parent == null)
+			{
+				return;
+			}
+
+			int offsetX = Left;
+			int offsetY = Top;
+			Rectangle parentClip = new Rectangle(offsetX, offsetY, Width, Height);
+
+			pevent.Graphics.TranslateTransform(-offsetX, -offsetY);
+			try
+			{
+				using (PaintEventArgs parentArgs = new PaintEventArgs(pevent.Graphics, parentClip))
+				{
+					InvokePaintBackground(Parent, parentArgs);
+					InvokePaint(Parent, parentArgs);
+				}
+			}
+			finally
+			{
+				pevent.Graphics.TranslateTransform(offsetX, offsetY);
+			}
 		}
 
 		protected override void OnPaint(PaintEventArgs e)
@@ -207,31 +305,31 @@ namespace CloudShot.Overlay
 			g.SmoothingMode = SmoothingMode.AntiAlias;
 			g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-			Color background = Color.FromArgb(Math.Min(255, fadeAlpha), 33, 33, 33);
+			Color background = Color.FromArgb(33, 33, 33);
 			using (GraphicsPath path = CreateRoundedRectPath(ClientRectangle, CornerRadius))
 			using (SolidBrush brush = new SolidBrush(background))
 			{
 				g.FillPath(brush, path);
 			}
 
-			for (int i = 0; i < actions.Length; i++)
+			for (int i = 0; i < visibleActions.Count; i++)
 			{
 				Rectangle buttonRect = GetButtonRect(i);
-				bool active = IsActionActive(actions[i]);
+				bool active = IsActionActive(visibleActions[i]);
 				bool hovered = i == hoveredIndex;
 
 				Color buttonColor = active
-					? Color.FromArgb(Math.Min(255, fadeAlpha), 46, 125, 50)
+					? Color.FromArgb(46, 125, 50)
 					: hovered
-						? Color.FromArgb(Math.Min(255, fadeAlpha), 66, 66, 66)
-						: Color.FromArgb(Math.Min(255, fadeAlpha), 48, 48, 48);
+						? Color.FromArgb(66, 66, 66)
+						: Color.FromArgb(48, 48, 48);
 
 				using (SolidBrush brush = new SolidBrush(buttonColor))
 				{
 					g.FillEllipse(brush, buttonRect);
 				}
 
-				DrawIcon(g, actions[i], buttonRect, active);
+				DrawIcon(g, visibleActions[i], buttonRect, active);
 			}
 		}
 
@@ -239,8 +337,6 @@ namespace CloudShot.Overlay
 		{
 			if (disposing)
 			{
-				fadeTimer.Stop();
-				fadeTimer.Dispose();
 				toolTip.Dispose();
 			}
 
@@ -254,31 +350,6 @@ namespace CloudShot.Overlay
 			toolTip.InitialDelay = 300;
 		}
 
-		private void FadeTimerTick(object sender, EventArgs e)
-		{
-			if (fadingIn)
-			{
-				fadeAlpha += 17;
-				if (fadeAlpha >= 255)
-				{
-					fadeAlpha = 255;
-					fadeTimer.Stop();
-				}
-			}
-			else
-			{
-				fadeAlpha -= 17;
-				if (fadeAlpha <= 0)
-				{
-					fadeAlpha = 0;
-					fadeTimer.Stop();
-					Visible = false;
-				}
-			}
-
-			Invalidate();
-		}
-
 		private Size CalculateSize()
 		{
 			return GetSizeFor(orientation);
@@ -286,8 +357,13 @@ namespace CloudShot.Overlay
 
 		private Size GetSizeFor(ToolbarOrientation value)
 		{
-			int groups = 3;
-			int buttons = actions.Length;
+			int groups = CountVisibleGroups();
+			int buttons = visibleActions.Count;
+			if (buttons == 0)
+			{
+				return new Size(PaddingHorizontal * 2, PaddingVertical * 2 + ButtonSize);
+			}
+
 			int mainLength = buttons * ButtonSize +
 			                 (buttons - groups) * ButtonSpacing +
 			                 (groups - 1) * GroupSpacing;
@@ -364,13 +440,55 @@ namespace CloudShot.Overlay
 			return new Point(x, y);
 		}
 
+		private static int GetActionGroup(CaptureToolbarAction action)
+		{
+			switch (action)
+			{
+				case CaptureToolbarAction.PenMode:
+				case CaptureToolbarAction.RectangleMode:
+				case CaptureToolbarAction.FilledRectangleMode:
+				case CaptureToolbarAction.PixelateMode:
+				case CaptureToolbarAction.ArrowMode:
+				case CaptureToolbarAction.HighlighterMode:
+				case CaptureToolbarAction.LineMode:
+				case CaptureToolbarAction.StepsMode:
+				case CaptureToolbarAction.TextMode:
+					return 0;
+				case CaptureToolbarAction.Move:
+				case CaptureToolbarAction.ColorPicker:
+				case CaptureToolbarAction.Undo:
+					return 1;
+				default:
+					return 2;
+			}
+		}
+
+		private int CountVisibleGroups()
+		{
+			if (visibleActions.Count == 0)
+			{
+				return 0;
+			}
+
+			int groups = 1;
+			for (int i = 1; i < visibleActions.Count; i++)
+			{
+				if (GetActionGroup(visibleActions[i]) != GetActionGroup(visibleActions[i - 1]))
+				{
+					groups++;
+				}
+			}
+
+			return groups;
+		}
+
 		private Rectangle GetButtonRect(int index)
 		{
 			int offset = 0;
 			for (int i = 0; i < index; i++)
 			{
 				offset += ButtonSize + ButtonSpacing;
-				if (i == 5 || i == 8)
+				if (GetActionGroup(visibleActions[i]) != GetActionGroup(visibleActions[i + 1]))
 				{
 					offset += GroupSpacing - ButtonSpacing;
 				}
@@ -386,7 +504,7 @@ namespace CloudShot.Overlay
 
 		private int HitTest(Point location)
 		{
-			for (int i = 0; i < actions.Length; i++)
+			for (int i = 0; i < visibleActions.Count; i++)
 			{
 				Rectangle rect = GetButtonRect(i);
 				if (rect.Contains(location))
@@ -410,6 +528,16 @@ namespace CloudShot.Overlay
 					return currentDrawingMode == DrawingToolMode.FilledRectangle && !isMoveMode;
 				case CaptureToolbarAction.PixelateMode:
 					return currentDrawingMode == DrawingToolMode.Pixelate && !isMoveMode;
+				case CaptureToolbarAction.ArrowMode:
+					return currentDrawingMode == DrawingToolMode.Arrow && !isMoveMode;
+				case CaptureToolbarAction.HighlighterMode:
+					return currentDrawingMode == DrawingToolMode.Highlighter && !isMoveMode;
+				case CaptureToolbarAction.LineMode:
+					return currentDrawingMode == DrawingToolMode.Line && !isMoveMode;
+				case CaptureToolbarAction.StepsMode:
+					return currentDrawingMode == DrawingToolMode.Steps && !isMoveMode;
+				case CaptureToolbarAction.TextMode:
+					return currentDrawingMode == DrawingToolMode.Text && !isMoveMode;
 				case CaptureToolbarAction.Move:
 					return isMoveMode;
 				default:
@@ -469,6 +597,40 @@ namespace CloudShot.Overlay
 						}
 						g.DrawRectangle(pen, cx - 9, cy - 9, 18, 18);
 						break;
+					case CaptureToolbarAction.ArrowMode:
+						DrawToolbarArrowIcon(g, iconColor, cx, cy);
+						break;
+					case CaptureToolbarAction.HighlighterMode:
+						using (Pen highlighterPen = new Pen(Color.FromArgb(160, iconColor), 9f))
+						{
+							highlighterPen.StartCap = LineCap.Flat;
+							highlighterPen.EndCap = LineCap.Flat;
+							g.DrawLine(highlighterPen, cx - 9, cy + 6, cx + 9, cy - 6);
+						}
+						break;
+					case CaptureToolbarAction.LineMode:
+						g.DrawLine(pen, cx - 8, cy + 4, cx + 8, cy - 4);
+						break;
+					case CaptureToolbarAction.StepsMode:
+					{
+						Rectangle stepCircle = new Rectangle(cx - 8, cy - 8, 16, 16);
+						using (SolidBrush stepBrush = new SolidBrush(iconColor))
+						{
+							g.FillEllipse(stepBrush, stepCircle);
+						}
+						using (Font stepFont = new Font("Segoe UI", 8f, FontStyle.Bold))
+						using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(33, 33, 33)))
+						{
+							DrawCenteredText(g, "1", stepFont, textBrush, stepCircle);
+						}
+						break;
+					}
+					case CaptureToolbarAction.TextMode:
+						using (Font textFont = new Font("Segoe UI", 10f, FontStyle.Bold))
+						{
+							g.DrawString("T", textFont, new SolidBrush(iconColor), cx - 5, cy - 9);
+						}
+						break;
 					case CaptureToolbarAction.Move:
 						g.DrawLine(pen, cx, cy - 9, cx, cy + 9);
 						g.DrawLine(pen, cx - 9, cy, cx + 9, cy);
@@ -527,6 +689,56 @@ namespace CloudShot.Overlay
 						g.DrawLine(pen, cx + 6, cy - 6, cx - 6, cy + 6);
 						break;
 				}
+			}
+		}
+
+		private static void DrawToolbarArrowIcon(Graphics g, Color color, int cx, int cy)
+		{
+			PointF tail = new PointF(cx - 7, cy + 7);
+			PointF tip = new PointF(cx + 7, cy - 7);
+			float dx = tip.X - tail.X;
+			float dy = tip.Y - tail.Y;
+			float length = (float)Math.Sqrt(dx * dx + dy * dy);
+			if (length < 1)
+			{
+				return;
+			}
+
+			dx /= length;
+			dy /= length;
+			const float headLength = 6f;
+			const float headHalfWidth = 4f;
+			PointF baseCenter = new PointF(tip.X - dx * headLength, tip.Y - dy * headLength);
+			float perpX = -dy;
+			float perpY = dx;
+			PointF left = new PointF(
+				baseCenter.X + perpX * headHalfWidth,
+				baseCenter.Y + perpY * headHalfWidth);
+			PointF right = new PointF(
+				baseCenter.X - perpX * headHalfWidth,
+				baseCenter.Y - perpY * headHalfWidth);
+
+			using (Pen shaftPen = new Pen(color, 2f))
+			{
+				shaftPen.StartCap = LineCap.Round;
+				shaftPen.EndCap = LineCap.Flat;
+				g.DrawLine(shaftPen, tail, baseCenter);
+			}
+
+			using (SolidBrush fillBrush = new SolidBrush(color))
+			{
+				g.FillPolygon(fillBrush, new[] { tip, left, right });
+			}
+		}
+
+		private static void DrawCenteredText(Graphics g, string text, Font font, Brush brush, Rectangle bounds)
+		{
+			using (StringFormat format = new StringFormat())
+			{
+				format.Alignment = StringAlignment.Center;
+				format.LineAlignment = StringAlignment.Center;
+				format.FormatFlags = StringFormatFlags.NoWrap;
+				g.DrawString(text, font, brush, bounds, format);
 			}
 		}
 
@@ -592,6 +804,16 @@ namespace CloudShot.Overlay
 					return "Filled rectangle";
 				case CaptureToolbarAction.PixelateMode:
 					return "Pixelate";
+				case CaptureToolbarAction.ArrowMode:
+					return "Arrow";
+				case CaptureToolbarAction.HighlighterMode:
+					return "Highlighter";
+				case CaptureToolbarAction.LineMode:
+					return "Line";
+				case CaptureToolbarAction.StepsMode:
+					return "Steps";
+				case CaptureToolbarAction.TextMode:
+					return "Text";
 				case CaptureToolbarAction.Move:
 					return "Move";
 				case CaptureToolbarAction.ColorPicker:
@@ -610,6 +832,14 @@ namespace CloudShot.Overlay
 					return "Cancel";
 				default:
 					return action.ToString();
+			}
+		}
+
+		private void UpdateRegion()
+		{
+			using (GraphicsPath path = CreateRoundedRectPath(ClientRectangle, CornerRadius))
+			{
+				Region = new Region(path);
 			}
 		}
 

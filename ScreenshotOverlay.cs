@@ -55,6 +55,9 @@ namespace CloudShot
 		private List<Point> currentLine;
 		private DrawingElement currentDrawingElement;
 		private Rectangle rectanglePreviewInvalidationBounds = Rectangle.Empty;
+		private int nextStepNumber = 1;
+		private TextBox activeTextEditor;
+		private Point activeTextEditorLayerPoint;
 
 		private Color selectedColor = Color.Empty;
 		private Point colorPickerPoint = Point.Empty;
@@ -112,16 +115,76 @@ namespace CloudShot
 
 			captureToolbar = new CaptureToolbar();
 			captureToolbar.ConfigureShortcuts(settings);
+			captureToolbar.ConfigureVisibleTools(settings);
 			captureToolbar.ActionRequested += CaptureToolbar_ActionRequested;
 			captureToolbar.Visible = false;
 			Controls.Add(captureToolbar);
 			captureToolbar.BringToFront();
+			EnsureInitialDrawingModeEnabled();
 
 			KeyDown += ScreenshotOverlay_KeyDown;
 			MouseDown += ScreenshotOverlay_MouseDown;
 			MouseMove += ScreenshotOverlay_MouseMove;
 			MouseUp += ScreenshotOverlay_MouseUp;
 			Paint += ScreenshotOverlay_Paint;
+		}
+
+		private void EnsureInitialDrawingModeEnabled()
+		{
+			if (IsDrawingToolEnabled(currentDrawingMode))
+			{
+				captureToolbar.SetDrawingMode(currentDrawingMode);
+				return;
+			}
+
+			DrawingToolMode[] drawingModes =
+			{
+				DrawingToolMode.Pen,
+				DrawingToolMode.Rectangle,
+				DrawingToolMode.FilledRectangle,
+				DrawingToolMode.Pixelate,
+				DrawingToolMode.Arrow,
+				DrawingToolMode.Highlighter,
+				DrawingToolMode.Line,
+				DrawingToolMode.Steps,
+				DrawingToolMode.Text
+			};
+
+			foreach (DrawingToolMode mode in drawingModes)
+			{
+				if (IsDrawingToolEnabled(mode))
+				{
+					SetDrawingMode(mode);
+					return;
+				}
+			}
+		}
+
+		private bool IsDrawingToolEnabled(DrawingToolMode mode)
+		{
+			switch (mode)
+			{
+				case DrawingToolMode.Pen:
+					return settings.ToolPenEnabled;
+				case DrawingToolMode.Rectangle:
+					return settings.ToolRectangleEnabled;
+				case DrawingToolMode.FilledRectangle:
+					return settings.ToolFilledRectangleEnabled;
+				case DrawingToolMode.Pixelate:
+					return settings.ToolPixelateEnabled;
+				case DrawingToolMode.Arrow:
+					return settings.ToolArrowEnabled;
+				case DrawingToolMode.Highlighter:
+					return settings.ToolHighlighterEnabled;
+				case DrawingToolMode.Line:
+					return settings.ToolLineEnabled;
+				case DrawingToolMode.Steps:
+					return settings.ToolStepsEnabled;
+				case DrawingToolMode.Text:
+					return settings.ToolTextEnabled;
+				default:
+					return false;
+			}
 		}
 
 		private void CaptureToolbar_ActionRequested(object sender, CaptureToolbarAction action)
@@ -139,6 +202,21 @@ namespace CloudShot
 					break;
 				case CaptureToolbarAction.PixelateMode:
 					SetDrawingMode(DrawingToolMode.Pixelate);
+					break;
+				case CaptureToolbarAction.ArrowMode:
+					SetDrawingMode(DrawingToolMode.Arrow);
+					break;
+				case CaptureToolbarAction.HighlighterMode:
+					SetDrawingMode(DrawingToolMode.Highlighter);
+					break;
+				case CaptureToolbarAction.LineMode:
+					SetDrawingMode(DrawingToolMode.Line);
+					break;
+				case CaptureToolbarAction.StepsMode:
+					SetDrawingMode(DrawingToolMode.Steps);
+					break;
+				case CaptureToolbarAction.TextMode:
+					SetDrawingMode(DrawingToolMode.Text);
 					break;
 				case CaptureToolbarAction.Move:
 					SetMoveMode();
@@ -171,6 +249,7 @@ namespace CloudShot
 
 		private void SetDrawingMode(DrawingToolMode mode)
 		{
+			CancelTextEditing();
 			isMoveMode = false;
 			currentDrawingMode = mode;
 			captureToolbar.SetDrawingMode(mode);
@@ -180,6 +259,7 @@ namespace CloudShot
 
 		private void SetMoveMode()
 		{
+			CancelTextEditing();
 			isMoveMode = true;
 			currentDrawingMode = DrawingToolMode.Pen;
 			captureToolbar.SetMoveMode(true);
@@ -198,6 +278,10 @@ namespace CloudShot
 				else if (currentDrawingMode == DrawingToolMode.Pen)
 				{
 					Cursor = penCursor;
+				}
+				else if (currentDrawingMode == DrawingToolMode.Text)
+				{
+					Cursor = Cursors.IBeam;
 				}
 				else
 				{
@@ -251,6 +335,7 @@ namespace CloudShot
 				    isScreenshotValid,
 				    isColorPickerMode,
 				    hasSelection,
+				    activeTextEditor == null,
 				    out CaptureShortcutAction action))
 			{
 				return false;
@@ -281,6 +366,46 @@ namespace CloudShot
 				case CaptureShortcutAction.ActivateColorPicker:
 					ActivateColorPicker();
 					break;
+				case CaptureShortcutAction.PenTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Pen))
+						SetDrawingMode(DrawingToolMode.Pen);
+					break;
+				case CaptureShortcutAction.RectangleTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Rectangle))
+						SetDrawingMode(DrawingToolMode.Rectangle);
+					break;
+				case CaptureShortcutAction.FilledRectangleTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.FilledRectangle))
+						SetDrawingMode(DrawingToolMode.FilledRectangle);
+					break;
+				case CaptureShortcutAction.PixelateTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Pixelate))
+						SetDrawingMode(DrawingToolMode.Pixelate);
+					break;
+				case CaptureShortcutAction.ArrowTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Arrow))
+						SetDrawingMode(DrawingToolMode.Arrow);
+					break;
+				case CaptureShortcutAction.HighlighterTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Highlighter))
+						SetDrawingMode(DrawingToolMode.Highlighter);
+					break;
+				case CaptureShortcutAction.LineTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Line))
+						SetDrawingMode(DrawingToolMode.Line);
+					break;
+				case CaptureShortcutAction.StepsTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Steps))
+						SetDrawingMode(DrawingToolMode.Steps);
+					break;
+				case CaptureShortcutAction.TextTool:
+					if (IsDrawingToolEnabled(DrawingToolMode.Text))
+						SetDrawingMode(DrawingToolMode.Text);
+					break;
+				case CaptureShortcutAction.MoveTool:
+					if (settings.ToolMoveEnabled)
+						SetMoveMode();
+					break;
 			}
 
 			return true;
@@ -288,6 +413,13 @@ namespace CloudShot
 
 		private void ScreenshotOverlay_KeyDown(object sender, KeyEventArgs e)
 		{
+			if (activeTextEditor != null && e.KeyCode == Keys.Escape)
+			{
+				CancelTextEditing();
+				e.Handled = true;
+				return;
+			}
+
 			if (HandleShortcut(e.KeyCode | e.Modifiers))
 			{
 				e.Handled = true;
@@ -296,6 +428,12 @@ namespace CloudShot
 
 		protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 		{
+			if (activeTextEditor != null && (keyData & Keys.KeyCode) == Keys.Escape)
+			{
+				CancelTextEditing();
+				return true;
+			}
+
 			if (HandleShortcut(keyData))
 			{
 				return true;
@@ -304,16 +442,130 @@ namespace CloudShot
 			return base.ProcessCmdKey(ref msg, keyData);
 		}
 
+		private void BeginTextEditing(Point clientPoint, Point layerPoint)
+		{
+			activeTextEditorLayerPoint = layerPoint;
+			activeTextEditor = new TextBox
+			{
+				BorderStyle = BorderStyle.FixedSingle,
+				BackColor = Color.White,
+				ForeColor = currentDrawingColor,
+				Font = ImageExporter.GetTextFont(),
+				Location = clientPoint,
+				Width = 200,
+				Height = 28
+			};
+			activeTextEditor.KeyDown += ActiveTextEditor_KeyDown;
+			activeTextEditor.LostFocus += ActiveTextEditor_LostFocus;
+			Controls.Add(activeTextEditor);
+			activeTextEditor.BringToFront();
+			captureToolbar.BringToFront();
+			activeTextEditor.Focus();
+		}
+
+		private void ActiveTextEditor_KeyDown(object sender, KeyEventArgs e)
+		{
+			if (e.KeyCode == Keys.Enter)
+			{
+				e.SuppressKeyPress = true;
+				CommitTextEditing();
+			}
+			else if (e.KeyCode == Keys.Escape)
+			{
+				e.SuppressKeyPress = true;
+				CancelTextEditing();
+			}
+		}
+
+		private void ActiveTextEditor_LostFocus(object sender, EventArgs e)
+		{
+			BeginInvoke(new Action(CommitTextEditing));
+		}
+
+		private void CommitTextEditing()
+		{
+			if (activeTextEditor == null)
+			{
+				return;
+			}
+
+			string text = activeTextEditor.Text?.Trim();
+			Point layerPoint = activeTextEditorLayerPoint;
+			RemoveActiveTextEditor();
+
+			if (string.IsNullOrEmpty(text))
+			{
+				return;
+			}
+
+			DrawingElement textElement = new DrawingElement(
+				new List<Point> { layerPoint },
+				DrawingToolMode.Text,
+				currentDrawingColor)
+			{
+				Text = text
+			};
+			drawingElements.Add(textElement);
+			DrawElementOnAnnotationLayer(textElement);
+			Point clientPoint = ImageExporter.LayerToClient(layerPoint, clientSelectionRect);
+			Invalidate(OverlayRenderer.GetTextInvalidationRect(clientPoint, text));
+		}
+
+		private void CancelTextEditing()
+		{
+			if (activeTextEditor == null)
+			{
+				return;
+			}
+
+			RemoveActiveTextEditor();
+		}
+
+		private void RemoveActiveTextEditor()
+		{
+			if (activeTextEditor == null)
+			{
+				return;
+			}
+
+			Font editorFont = activeTextEditor.Font;
+			activeTextEditor.KeyDown -= ActiveTextEditor_KeyDown;
+			activeTextEditor.LostFocus -= ActiveTextEditor_LostFocus;
+			Controls.Remove(activeTextEditor);
+			activeTextEditor.Dispose();
+			activeTextEditor = null;
+
+			if (editorFont != null && editorFont != Font)
+			{
+				editorFont.Dispose();
+			}
+		}
+
 		private void UndoLastDrawingLine()
 		{
+			CancelTextEditing();
+
 			if (drawingElements.Count == 0)
 			{
 				return;
 			}
 
 			drawingElements.RemoveAt(drawingElements.Count - 1);
+			UpdateNextStepNumber();
 			RebuildAnnotationLayer();
 			InvalidateSelectionArea();
+		}
+
+		private void UpdateNextStepNumber()
+		{
+			nextStepNumber = 1;
+			foreach (DrawingElement element in drawingElements)
+			{
+				if (element.Mode == DrawingToolMode.Steps && element.StepNumber >= nextStepNumber)
+				{
+					nextStepNumber = element.StepNumber + 1;
+				}
+			}
 		}
 
 		private bool IsPointInsideSelectionRectangle(Point point)
@@ -378,8 +630,36 @@ namespace CloudShot
 			    !isSelecting &&
 			    selectionRectangle.Width > 0)
 			{
-				isDrawing = true;
 				Point layerPoint = ImageExporter.ClientToLayer(e.Location, clientSelectionRect);
+
+				if (currentDrawingMode == DrawingToolMode.Steps)
+				{
+					DrawingElement stepElement = new DrawingElement(
+						new List<Point> { layerPoint },
+						DrawingToolMode.Steps,
+						currentDrawingColor)
+					{
+						StepNumber = nextStepNumber++
+					};
+					drawingElements.Add(stepElement);
+					DrawElementOnAnnotationLayer(stepElement);
+					Point clientPoint = ImageExporter.LayerToClient(layerPoint, clientSelectionRect);
+					Invalidate(OverlayRenderer.GetStepInvalidationRect(clientPoint));
+					return;
+				}
+
+				if (currentDrawingMode == DrawingToolMode.Text)
+				{
+					if (activeTextEditor != null)
+					{
+						CommitTextEditing();
+					}
+
+					BeginTextEditing(e.Location, layerPoint);
+					return;
+				}
+
+				isDrawing = true;
 				currentLine = currentDrawingMode == DrawingToolMode.Pen
 					? new List<Point> { layerPoint }
 					: new List<Point> { layerPoint, layerPoint };
@@ -395,6 +675,7 @@ namespace CloudShot
 				return;
 			}
 
+			CancelTextEditing();
 			isSelecting = true;
 			isResizing = false;
 			isDrawing = false;
@@ -405,6 +686,7 @@ namespace CloudShot
 			clientSelectionRect = Rectangle.Empty;
 			resizeHandles.Clear();
 			drawingElements.Clear();
+			nextStepNumber = 1;
 			DisposeAnnotationLayer();
 			captureToolbar.HideImmediate();
 			Invalidate();
@@ -475,19 +757,18 @@ namespace CloudShot
 						Invalidate(dirty);
 					}
 				}
-				else if (currentLine.Count >= 2)
+				else if (currentDrawingElement.IsTwoPointDragMode && currentLine.Count >= 2)
 				{
 					currentLine[1] = ImageExporter.ClientToLayer(e.Location, clientSelectionRect);
 					Point clientStart = ImageExporter.LayerToClient(currentLine[0], clientSelectionRect);
-					Rectangle newBounds = OverlayRenderer.GetRectangleDrawingInvalidationRect(
+					Rectangle newBounds = ImageExporter.GetTwoPointDragInvalidationRect(
 						clientStart,
 						e.Location,
-						ImageExporter.DrawingPenSize);
-					Rectangle dirty = rectanglePreviewInvalidationBounds.IsEmpty
+						currentDrawingMode);
+					rectanglePreviewInvalidationBounds = rectanglePreviewInvalidationBounds.IsEmpty
 						? newBounds
 						: Rectangle.Union(rectanglePreviewInvalidationBounds, newBounds);
-					rectanglePreviewInvalidationBounds = newBounds;
-					Invalidate(dirty);
+					Invalidate(rectanglePreviewInvalidationBounds);
 				}
 
 				return;
@@ -511,6 +792,10 @@ namespace CloudShot
 					else if (IsPointInsideSelectionRectangle(e.Location) && currentDrawingMode == DrawingToolMode.Pen)
 					{
 						Cursor = penCursor;
+					}
+					else if (IsPointInsideSelectionRectangle(e.Location) && currentDrawingMode == DrawingToolMode.Text)
+					{
+						Cursor = Cursors.IBeam;
 					}
 					else
 					{
@@ -585,13 +870,19 @@ namespace CloudShot
 				currentLine = null;
 				currentDrawingElement = null;
 
-				if (completedElement != null && completedElement.IsRectangleToolMode)
+				if (completedElement != null && completedElement.IsTwoPointDragMode)
 				{
+					Point clientStart = ImageExporter.LayerToClient(completedElement.Points[0], clientSelectionRect);
+					Point clientEnd = ImageExporter.LayerToClient(completedElement.Points[1], clientSelectionRect);
+					Rectangle finalBounds = ImageExporter.GetTwoPointDragInvalidationRect(
+						clientStart,
+						clientEnd,
+						completedElement.Mode);
 					DrawElementOnAnnotationLayer(completedElement);
-					if (!rectanglePreviewInvalidationBounds.IsEmpty)
-					{
-						Invalidate(rectanglePreviewInvalidationBounds);
-					}
+					Rectangle dirty = rectanglePreviewInvalidationBounds.IsEmpty
+						? finalBounds
+						: Rectangle.Union(rectanglePreviewInvalidationBounds, finalBounds);
+					Invalidate(dirty);
 				}
 
 				rectanglePreviewInvalidationBounds = Rectangle.Empty;
@@ -907,7 +1198,7 @@ namespace CloudShot
 				PreviewSize = ColorPickerPreviewSize
 			};
 
-			DrawingElement inProgressDrawing = isDrawing && currentDrawingElement != null && currentDrawingElement.IsRectangleToolMode
+			DrawingElement inProgressDrawing = isDrawing && currentDrawingElement != null && currentDrawingElement.IsTwoPointDragMode
 				? currentDrawingElement
 				: null;
 
@@ -1191,6 +1482,7 @@ namespace CloudShot
 				return;
 			}
 
+			CancelTextEditing();
 			isColorPickerMode = true;
 			isSelecting = false;
 			isResizing = false;

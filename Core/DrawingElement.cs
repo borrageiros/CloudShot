@@ -8,7 +8,12 @@ namespace CloudShot.Core
 		Pen,
 		Rectangle,
 		FilledRectangle,
-		Pixelate
+		Pixelate,
+		Arrow,
+		Highlighter,
+		Line,
+		Steps,
+		Text
 	}
 
 	public class DrawingElement
@@ -16,6 +21,8 @@ namespace CloudShot.Core
 		public List<Point> Points { get; set; }
 		public DrawingToolMode Mode { get; set; }
 		public Color DrawingColor { get; set; }
+		public int StepNumber { get; set; }
+		public string Text { get; set; }
 
 		public DrawingElement(List<Point> points, DrawingToolMode mode, Color color)
 		{
@@ -25,6 +32,14 @@ namespace CloudShot.Core
 		}
 
 		public bool IsPenMode => Mode == DrawingToolMode.Pen;
+
+		public bool IsTwoPointDragMode =>
+			Mode == DrawingToolMode.Rectangle ||
+			Mode == DrawingToolMode.FilledRectangle ||
+			Mode == DrawingToolMode.Pixelate ||
+			Mode == DrawingToolMode.Arrow ||
+			Mode == DrawingToolMode.Highlighter ||
+			Mode == DrawingToolMode.Line;
 
 		public bool IsRectangleToolMode =>
 			Mode == DrawingToolMode.Rectangle ||

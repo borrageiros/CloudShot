@@ -160,6 +160,21 @@ namespace CloudShot.Overlay
 			return new Rectangle(x, y, width, height);
 		}
 
+		public static Rectangle GetStepInvalidationRect(Point center)
+		{
+			int padding = ImageExporter.StepCircleRadius + 4;
+			return new Rectangle(
+				center.X - padding,
+				center.Y - padding,
+				padding * 2,
+				padding * 2);
+		}
+
+		public static Rectangle GetTextInvalidationRect(Point topLeft, string text)
+		{
+			return ImageExporter.GetTextInvalidationRect(topLeft, text);
+		}
+
 		private void DrawDimOverlay(Graphics g, Rectangle excludeRect)
 		{
 			Rectangle bounds = Rectangle.Round(g.VisibleClipBounds);

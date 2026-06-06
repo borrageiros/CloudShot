@@ -10,6 +10,7 @@ namespace CloudShot.Overlay
 			bool isScreenshotValid,
 			bool isColorPickerMode,
 			bool hasSelection,
+			bool allowToolShortcuts,
 			out CaptureShortcutAction action)
 		{
 			action = CaptureShortcutAction.None;
@@ -34,6 +35,69 @@ namespace CloudShot.Overlay
 			{
 				action = CaptureShortcutAction.Close;
 				return true;
+			}
+
+			if (allowToolShortcuts && isScreenshotValid && !isColorPickerMode)
+			{
+				if (MatchesShortcut(keyData, settings.PenToolShortcut))
+				{
+					action = CaptureShortcutAction.PenTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.RectangleToolShortcut))
+				{
+					action = CaptureShortcutAction.RectangleTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.FilledRectangleToolShortcut))
+				{
+					action = CaptureShortcutAction.FilledRectangleTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.PixelateToolShortcut))
+				{
+					action = CaptureShortcutAction.PixelateTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.ArrowToolShortcut))
+				{
+					action = CaptureShortcutAction.ArrowTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.HighlighterToolShortcut))
+				{
+					action = CaptureShortcutAction.HighlighterTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.LineToolShortcut))
+				{
+					action = CaptureShortcutAction.LineTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.StepsToolShortcut))
+				{
+					action = CaptureShortcutAction.StepsTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.TextToolShortcut))
+				{
+					action = CaptureShortcutAction.TextTool;
+					return true;
+				}
+
+				if (MatchesShortcut(keyData, settings.MoveToolShortcut))
+				{
+					action = CaptureShortcutAction.MoveTool;
+					return true;
+				}
 			}
 
 			if (keyData == settings.CopyShortcut && hasSelection && isScreenshotValid)
@@ -70,6 +134,11 @@ namespace CloudShot.Overlay
 
 			return false;
 		}
+
+		private static bool MatchesShortcut(Keys keyData, Keys configured)
+		{
+			return configured != Keys.None && keyData == configured;
+		}
 	}
 
 	public enum CaptureShortcutAction
@@ -81,6 +150,16 @@ namespace CloudShot.Overlay
 		Undo,
 		Ocr,
 		Scp,
-		ActivateColorPicker
+		ActivateColorPicker,
+		PenTool,
+		RectangleTool,
+		FilledRectangleTool,
+		PixelateTool,
+		ArrowTool,
+		HighlighterTool,
+		LineTool,
+		StepsTool,
+		TextTool,
+		MoveTool
 	}
 }

@@ -43,6 +43,9 @@ namespace CloudShot
 
 		private ComboBox cmbColorFormat;
 
+		private Panel defaultColorPreview;
+		private Color defaultDrawingColor = Color.Red;
+
 		private CheckBox chkStartWithWindows;
 
 		private Button btnSave;
@@ -436,8 +439,13 @@ namespace CloudShot
 			{
 				Dock = DockStyle.Fill,
 				ColumnCount = 1,
-				RowCount = 8
+				RowCount = 13
 			};
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 			layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -508,6 +516,24 @@ namespace CloudShot
 			};
 			cmbColorFormat.Items.AddRange(new object[] { "RGB", "HEX", "HSL" });
 
+			var drawingTitle = new Label
+			{
+				Text = "Drawing",
+				Font = TitleFont,
+				AutoSize = true,
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			var drawingDescription = new Label
+			{
+				Text = "Default color used for pen, rectangle and filled rectangle annotations.",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 8)
+			};
+
 			layout.Controls.Add(startupTitle, 0, 0);
 			layout.Controls.Add(chkStartWithWindows, 0, 1);
 			layout.Controls.Add(startupHint, 0, 2);
@@ -515,9 +541,65 @@ namespace CloudShot
 			layout.Controls.Add(colorDescription, 0, 5);
 			layout.Controls.Add(formatLabel, 0, 6);
 			layout.Controls.Add(cmbColorFormat, 0, 7);
+			layout.Controls.Add(drawingTitle, 0, 9);
+			layout.Controls.Add(drawingDescription, 0, 10);
+			layout.Controls.Add(BuildDefaultColorPicker(), 0, 11);
 
 			page.Controls.Add(layout);
 			return page;
+		}
+
+		private Control BuildDefaultColorPicker()
+		{
+			var panel = new FlowLayoutPanel
+			{
+				FlowDirection = FlowDirection.LeftToRight,
+				AutoSize = true,
+				AutoSizeMode = AutoSizeMode.GrowAndShrink,
+				WrapContents = false,
+				Margin = new Padding(0)
+			};
+
+			defaultColorPreview = new Panel
+			{
+				Size = new Size(28, 28),
+				BackColor = defaultDrawingColor,
+				BorderStyle = BorderStyle.FixedSingle,
+				Margin = new Padding(0, 0, 8, 0),
+				Cursor = Cursors.Hand
+			};
+			defaultColorPreview.Click += (s, e) => ChooseDefaultColor();
+
+			var chooseButton = new Button
+			{
+				Text = "Change...",
+				Size = new Size(92, 28),
+				FlatStyle = FlatStyle.System,
+				Font = BodyFont,
+				Margin = new Padding(0)
+			};
+			chooseButton.Click += (s, e) => ChooseDefaultColor();
+
+			panel.Controls.Add(defaultColorPreview);
+			panel.Controls.Add(chooseButton);
+			return panel;
+		}
+
+		private void ChooseDefaultColor()
+		{
+			using (var dialog = new ColorDialog
+			{
+				Color = defaultDrawingColor,
+				FullOpen = true,
+				AnyColor = true
+			})
+			{
+				if (dialog.ShowDialog(this) == DialogResult.OK)
+				{
+					defaultDrawingColor = dialog.Color;
+					defaultColorPreview.BackColor = defaultDrawingColor;
+				}
+			}
 		}
 
 		private Panel BuildFooter()
@@ -644,6 +726,26 @@ namespace CloudShot
 			return textBox.Text.Trim();
 		}
 
+		private static Color ParseColorOrDefault(string value, Color fallback)
+		{
+			if (string.IsNullOrWhiteSpace(value))
+				return fallback;
+
+			try
+			{
+				return ColorTranslator.FromHtml(value);
+			}
+			catch
+			{
+				return fallback;
+			}
+		}
+
+		private static string ToHex(Color color)
+		{
+			return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+		}
+
 		private void LoadSettings()
 		{
 			txtUndo.Hotkey = settings.UndoShortcut;
@@ -667,6 +769,10 @@ namespace CloudShot
 			if (cmbColorFormat.SelectedIndex < 0)
 				cmbColorFormat.SelectedIndex = 0;
 
+			defaultDrawingColor = ParseColorOrDefault(settings.DefaultDrawingColor, Color.Red);
+			if (defaultColorPreview != null)
+				defaultColorPreview.BackColor = defaultDrawingColor;
+
 			chkStartWithWindows.Checked = settings.StartWithWindows;
 		}
 
@@ -688,6 +794,7 @@ namespace CloudShot
 			settings.ScpClipboardText = GetTextBoxValue(txtScpClipboardText);
 
 			settings.ColorFormat = cmbColorFormat.SelectedItem.ToString();
+			settings.DefaultDrawingColor = ToHex(defaultDrawingColor);
 			settings.StartWithWindows = chkStartWithWindows.Checked;
 
 			ApplyStartupSetting(settings.StartWithWindows);

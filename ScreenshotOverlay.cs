@@ -67,6 +67,7 @@ namespace CloudShot
 		public ScreenshotOverlay(Bitmap screenshot)
 		{
 			settings = AppSettings.Load();
+			currentDrawingColor = ParseColorOrDefault(settings.DefaultDrawingColor, Color.Red);
 
 			if (screenshot != null && screenshot.Width > 0 && screenshot.Height > 0)
 			{
@@ -222,6 +223,21 @@ namespace CloudShot
 					currentDrawingColor = colorDialog.Color;
 					captureToolbar.SetDrawingColor(currentDrawingColor);
 				}
+			}
+		}
+
+		private static Color ParseColorOrDefault(string value, Color fallback)
+		{
+			if (string.IsNullOrWhiteSpace(value))
+				return fallback;
+
+			try
+			{
+				return ColorTranslator.FromHtml(value);
+			}
+			catch
+			{
+				return fallback;
 			}
 		}
 

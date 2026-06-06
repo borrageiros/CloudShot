@@ -36,6 +36,9 @@ namespace CloudShot
 		// Color picker configuration
 		public string ColorFormat { get; set; }
 
+		// Default drawing color (hex format, e.g. #FF0000)
+		public string DefaultDrawingColor { get; set; }
+
 		// Constructor
 		public AppSettings()
 		{
@@ -61,6 +64,7 @@ namespace CloudShot
 			ScpKeyPassphrase = "";
 			ScpClipboardText = "";
 			ColorFormat = "RGB";
+			DefaultDrawingColor = "#FF0000";
 		}
 
 		// Load configuration from file

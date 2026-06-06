@@ -36,8 +36,8 @@ Program.Main
 | `Program.cs` | Entry point, icon bootstrap, launches `MainForm` |
 | `MainForm.cs` | Tray icon, hotkey hook, capture orchestration, `ScreenshotEventArgs` |
 | `ScreenshotOverlay.cs` | **Main capture UI** — selection, move, drawing, color picker, OCR, SCP, keyboard/mouse handling |
-| `AppSettings.cs` | Persistent settings (shortcuts, SCP, color format, startup) |
-| `ConfigForm.cs` | Settings UI (shortcuts, SCP config, color format, startup toggle) |
+| `AppSettings.cs` | Persistent settings (shortcuts, SCP, color format, default drawing color, startup) |
+| `ConfigForm.cs` | Settings UI (shortcuts, SCP config, color format, default drawing color, startup toggle) |
 | `KeyboardHook.cs` | Global hotkey via Win32 `RegisterHotKey` |
 | `IconGenerator.cs` | Generates `app.ico` at runtime if missing |
 
@@ -86,6 +86,7 @@ Program.Main
 | **Undo** | `ScreenshotOverlay.cs` | `Ctrl+Z`; removes last `DrawingElement` |
 | **Color picker (screen)** | `ScreenshotOverlay.cs`, `Overlay/OverlayRenderer.cs`, `Core/BitmapPixelReader.cs`, `Overlay/ColorFormatter.cs` | `Ctrl+V`; zoom preview; copies formatted color (RGB/HEX/HSL); no selection required |
 | **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for pen, rectangle, and filled rectangle stroke/fill color |
+| **Default drawing color** | `AppSettings.cs` (`DefaultDrawingColor`), `ConfigForm.cs`, `ScreenshotOverlay.cs` | Configurable in Settings → General → Drawing; stored as hex; `ScreenshotOverlay` initializes `currentDrawingColor` from it (default `#FF0000`) |
 | **OCR** | `ScreenshotOverlay.cs` (`PerformOcr`) | Uses `Windows.Media.Ocr.OcrEngine`; requires valid selection |
 | **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH private key, optional key passphrase); uses the built-in OpenSSH `scp` command. Passphrase-protected keys use `SSH_ASKPASS`. |
 | **Settings** | `AppSettings.cs`, `ConfigForm.cs` | Tray → Settings |

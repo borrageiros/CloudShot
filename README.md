@@ -1,92 +1,83 @@
 # 📸 CloudShot
 
-CloudShot is a modern, powerful, and lightweight screenshot application for Windows that combines advanced features like OCR and automatic uploading via SCP.
+Lightweight screenshot tool for Windows. Capture a region, annotate it, copy or save it, extract text with OCR, or upload it via SCP.
 
-## ✨ Main Features
+## ⬇️ Download
 
-### 📷 Screenshot Capture
-- 🎯 Precisely select any area of the screen
-- 🖌️ Drawing and annotation tools
-- 🔄 Undo function for corrections
+Get the latest release from [download page](https://borrageiros.github.io/CloudShot/):
 
-### 🎨 Color Picker
-- 🔍 Zoom in to select exact pixels
-- 📋 Copy color values in multiple formats
-- 🌈 Support for RGB, HEX, and HSL formats
+- **Installer** — `CloudShot-{version}-installer.exe`
+- **Portable** — `CloudShot-{version}-portable.zip`
 
-### 🔍 Text Recognition (OCR)
-- 📝 Extracts text from any image or screenshot
-- 🌍 Supports multiple languages
-- 📋 Direct copy to clipboard
+## ✨ Features
 
-### ⚡ Automatic Upload via SCP
-- 🚀 Secure transfer to remote servers
-- ⚙️ Customizable configuration
-- 🔗 Automatic URL copying
+- Region capture across multiple monitors
+- Move and resize the selection before exporting
+- Pen and rectangle drawing tools
+- Color picker with zoom preview (RGB, HEX, HSL)
+- OCR with clipboard copy
+- SCP upload using the built-in OpenSSH client
+- Configurable keyboard shortcuts
+- Optional start with Windows
 
-### ⌨️ Keyboard Shortcuts
-- `PrintScreen`: Start capture
-- `Ctrl+C`: Copy to clipboard
-- `Ctrl+S`: Save as file
-- `Ctrl+Z`: Undo last action
-- `Ctrl+R`: Extract text (OCR)
-- `Ctrl+X`: Upload via SCP
-- `Ctrl+V`: Activate color picker
-- `Esc`: Cancel
+## 🖱️ Usage
 
-## 🛠️ Installation
+Press `PrintScreen` or use the tray icon to start a capture. Select an area, then copy, save, run OCR, or upload.
 
-1. Download the installer from the releases section
-2. Run the installer
-3. Select the installation folder
-4. Ready to use!
+### Default shortcuts
 
-## ⚙️ General Configuration
-Access the settings from the system tray icon:
-1. 🖱️ Right-click on the CloudShot icon
-2. ⚙️ Select "Settings"
-3. 🔧 Adjust:
-   - Keyboard shortcuts
-   - Color picker format
-   - SCP commands
-   - Auto-start with Windows
+| Action | Key |
+|--------|-----|
+| Start capture | `PrintScreen` |
+| Copy | `Ctrl+C` |
+| Save | `Ctrl+S` |
+| Undo | `Ctrl+Z` |
+| OCR | `Ctrl+R` |
+| Upload via SCP | `Ctrl+X` |
+| Color picker | `Ctrl+V` |
+| Cancel | `Esc` |
 
-## 🎨 Color Picker Configuration
-CloudShot's color picker lets you extract colors from anywhere on your screen:
+All overlay shortcuts can be changed in Settings. The Move tool is available from the toolbar only.
 
-1. **Activation**:
-   - Press `Ctrl+V` (customizable) during screen capture
-   - Move the cursor to select a pixel color
-   - Click to copy the color value to clipboard
+## ⚙️ Settings
 
-2. **Output Format**:
-   - Configure the format in Settings: RGB, HEX, or HSL
-   - Example outputs:
-     - RGB: `rgb(255, 0, 0)`
-     - HEX: `#FF0000`
-     - HSL: `hsl(0, 100%, 50%)`
+Right-click the tray icon and open **Settings**.
 
-## 📤 SCP Configuration
-CloudShot allows configuring two important parameters for SCP functionality:
+- **General** — start with Windows
+- **Shortcuts** — customize overlay keys
+- **SCP** — upload configuration
+- **Color picker** — output format (RGB, HEX, HSL)
 
-1. **SCP Command** (`SCP Command:`):
-   - Defines the command to upload files to your server
-   - Example: `scp <image> user@server:/path/to/upload/`
-   - `<image>` will be replaced with the file to be uploaded
+### SCP
 
-2. **URL to Copy** (`URL to copy:`):
-   - Defines the base URL that will be copied to the clipboard after uploading
-   - Example: `https://myserver.com/screenshots/<image>`
-   - `<image>` will be replaced with the uploaded file name
+Uploads use the system `scp` command (OpenSSH must be available in PATH).
 
+| Field | Description |
+|-------|-------------|
+| Host | `user@server` or an SSH config alias |
+| Port | SSH port (default 22) |
+| Remote path | Destination folder on the server |
+| SSH private key | Path to your key file |
+| Key passphrase | Optional, for encrypted keys |
+| Clipboard text | Optional text copied after upload; `<image>` is replaced with the filename |
 
-## 🏗️ Compilation
+Example clipboard text: `https://myserver.com/screenshots/<image>`
 
-### Requirements
-- Visual Studio 2019 or later
-- .NET Framework 4.8
+### Color picker
 
-### Compilation Steps
+During capture, press `Ctrl+V`, move the cursor to pick a pixel, and click to copy the color. Set the format in Settings.
+
+## 📋 Requirements
+
+- Windows
+- .NET Framework 4.8 (included in the installer/portable build)
+- OpenSSH client (for SCP upload)
+
+## 🏗️ Build
+
 ```bash
 dotnet restore
 dotnet build
+```
+
+Requires the [.NET SDK](https://dotnet.microsoft.com/download) targeting .NET Framework 4.8.

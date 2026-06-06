@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
@@ -13,6 +14,7 @@ namespace CloudShot
     private KeyboardHook keyboardHook;
     private ScreenshotOverlay overlay;
     private AppSettings settings;
+    private string pendingUpdateUrl;
 
     public MainForm()
     {
@@ -65,8 +67,12 @@ namespace CloudShot
       // Handle double-click on the icon
       trayIcon.DoubleClick += OnCaptureScreen;
 
-      // Hide form when starting
-      this.Load += (s, e) => this.Hide();
+      // Hide form when starting and check for updates once
+      this.Load += (s, e) =>
+      {
+        this.Hide();
+        CheckForUpdatesOnStartup();
+      };
 
       // Apply the startup configuration with Windows
       ApplyStartupSetting(settings.StartWithWindows);
@@ -198,6 +204,50 @@ namespace CloudShot
       catch (Exception ex)
       {
         MessageBox.Show($"Error processing the capture: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
+    }
+
+    private async void CheckForUpdatesOnStartup()
+    {
+      try
+      {
+        UpdateCheckResult result = await UpdateService.CheckForUpdatesAsync();
+
+        if (result != null && result.UpdateAvailable)
+        {
+          pendingUpdateUrl = result.ReleaseUrl;
+
+          trayIcon.BalloonTipClicked -= OnUpdateBalloonClicked;
+          trayIcon.BalloonTipClicked += OnUpdateBalloonClicked;
+
+          trayIcon.ShowBalloonTip(
+              5000,
+              "CloudShot",
+              $"A new version ({result.LatestVersion}) is available. Click to download.",
+              ToolTipIcon.Info
+          );
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error checking for updates: {ex.Message}");
+      }
+    }
+
+    private void OnUpdateBalloonClicked(object sender, EventArgs e)
+    {
+      if (string.IsNullOrEmpty(pendingUpdateUrl))
+      {
+        return;
+      }
+
+      try
+      {
+        Process.Start(new ProcessStartInfo(pendingUpdateUrl) { UseShellExecute = true });
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error opening update URL: {ex.Message}");
       }
     }
 

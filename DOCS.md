@@ -40,6 +40,7 @@ Program.Main
 | `ConfigForm.cs` | Settings UI (shortcuts, SCP config, color format, default drawing color, startup toggle) |
 | `KeyboardHook.cs` | Global hotkey via Win32 `RegisterHotKey` |
 | `IconGenerator.cs` | Generates `app.ico` at runtime if missing |
+| `Core/UpdateService.cs` | Checks GitHub latest release once on startup; compares with the assembly version |
 
 ### `Core/`
 
@@ -51,6 +52,7 @@ Program.Main
 | `BitmapPixelReader.cs` | Fast pixel read via `LockBits` (color picker) |
 | `ScpUploadService.cs` | Runs the built-in `scp` (OpenSSH) to upload a file with SSH key auth; resolves host/user from `~/.ssh/config` |
 | `SshConfigResolver.cs` | Maps host/IP to SSH config alias or `user@host` before running scp |
+| `UpdateService.cs` | Queries `releases/latest` on GitHub, parses `tag_name`, and reports whether a newer version exists |
 
 ### `Overlay/`
 
@@ -91,6 +93,7 @@ Program.Main
 | **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH private key, optional key passphrase); uses the built-in OpenSSH `scp` command. Passphrase-protected keys use `SSH_ASKPASS`. |
 | **Settings** | `AppSettings.cs`, `ConfigForm.cs` | Tray → Settings |
 | **Start with Windows** | `MainForm.cs`, `ConfigForm.cs`, `AppSettings.cs` | Registry `HKCU\...\Run\CloudShot` |
+| **Update check** | `Core/UpdateService.cs`, `MainForm.cs` (`CheckForUpdatesOnStartup`) | Runs once on `MainForm.Load`; shows a tray balloon if a newer GitHub release exists; clicking it opens the download page (`https://borrageiros.github.io/CloudShot/`) |
 
 ---
 

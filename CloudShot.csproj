@@ -5,7 +5,7 @@
     <TargetFramework>net48</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>2.1</Version>
+    <Version>2.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

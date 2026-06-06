@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 using System.Windows.Forms;
 using CloudShot.Core;
 using CloudShot.Export;
@@ -23,7 +22,6 @@ namespace CloudShot.Overlay
 		private readonly Font valueFont = new Font("Segoe UI", 9f);
 		private readonly Font instructionFont = new Font("Segoe UI", 11f, FontStyle.Bold);
 
-		private Bitmap dimOverlay;
 		private Bitmap screenshot;
 
 		public OverlayRenderer()
@@ -33,17 +31,7 @@ namespace CloudShot.Overlay
 
 		public void Initialize(Bitmap sourceScreenshot, Size clientSize)
 		{
-			screenshot?.Dispose();
 			screenshot = sourceScreenshot;
-
-			dimOverlay?.Dispose();
-			dimOverlay = new Bitmap(clientSize.Width, clientSize.Height, PixelFormat.Format32bppArgb);
-
-			using (Graphics g = Graphics.FromImage(dimOverlay))
-			{
-				g.CompositingQuality = CompositingQuality.HighSpeed;
-				g.FillRectangle(dimBrush, 0, 0, clientSize.Width, clientSize.Height);
-			}
 		}
 
 		public void Paint(
@@ -51,7 +39,7 @@ namespace CloudShot.Overlay
 			CoordinateMapper mapper,
 			bool isScreenshotValid,
 			bool isColorPickerMode,
-			bool isPenMode,
+			DrawingToolMode currentDrawingMode,
 			bool isMoveMode,
 			bool isSelecting,
 			Rectangle selectionRectangle,
@@ -59,6 +47,7 @@ namespace CloudShot.Overlay
 			IReadOnlyList<Rectangle> resizeHandles,
 			Bitmap annotationLayer,
 			Rectangle clientSelectionRect,
+			DrawingElement inProgressDrawing,
 			ColorPickerPaintState colorPickerState,
 			AppSettings settings,
 			Point lastMousePosition)
@@ -89,7 +78,7 @@ namespace CloudShot.Overlay
 				screenshot.Height,
 				GraphicsUnit.Pixel);
 
-			DrawDimOverlay(g, mapper, selectionRectangle, clientSelectionRect);
+			DrawDimOverlay(g, clientSelectionRect);
 
 			if (selectionRectangle.IsEmpty || selectionRectangle.Width <= 0 || selectionRectangle.Height <= 0)
 			{
@@ -111,7 +100,7 @@ namespace CloudShot.Overlay
 			}
 			else
 			{
-				Pen borderPen = isPenMode ? selectionBorderPen : rectangleSelectionBorderPen;
+				Pen borderPen = currentDrawingMode == DrawingToolMode.Pen ? selectionBorderPen : rectangleSelectionBorderPen;
 				g.DrawRectangle(borderPen, screenRect);
 			}
 
@@ -121,7 +110,14 @@ namespace CloudShot.Overlay
 			}
 			else if (drawingElements != null && drawingElements.Count > 0)
 			{
-				ImageExporter.DrawAnnotationsOnLayer(g, drawingElements, screenRect);
+				g.TranslateTransform(screenRect.X, screenRect.Y);
+				ImageExporter.DrawAnnotationsOnLayer(g, drawingElements, screenshot, selectionRectangle);
+				g.ResetTransform();
+			}
+
+			if (inProgressDrawing != null)
+			{
+				ImageExporter.DrawElementPreview(g, inProgressDrawing, clientSelectionRect, screenshot, selectionRectangle);
 			}
 
 			if (resizeHandles != null && !isSelecting && !isMoveMode)
@@ -164,41 +160,42 @@ namespace CloudShot.Overlay
 			return new Rectangle(x, y, width, height);
 		}
 
-		private void DrawDimOverlay(Graphics g, CoordinateMapper mapper, Rectangle selectionRectangle, Rectangle clientSelectionRect)
+		private void DrawDimOverlay(Graphics g, Rectangle excludeRect)
 		{
-			if (dimOverlay == null)
-			{
-				return;
-			}
-
-			Rectangle excludeRect = clientSelectionRect;
-			if (excludeRect.IsEmpty &&
-			    !selectionRectangle.IsEmpty &&
-			    selectionRectangle.Width > 0 &&
-			    selectionRectangle.Height > 0)
-			{
-				Rectangle validRect = mapper.ClampToImage(selectionRectangle, screenshot.Width, screenshot.Height);
-				if (validRect.Width > 0 && validRect.Height > 0)
-				{
-					excludeRect = mapper.ToClientRect(validRect);
-				}
-			}
+			Rectangle bounds = Rectangle.Round(g.VisibleClipBounds);
 
 			if (excludeRect.IsEmpty || excludeRect.Width <= 0 || excludeRect.Height <= 0)
 			{
-				g.DrawImageUnscaled(dimOverlay, 0, 0);
+				g.FillRectangle(dimBrush, bounds);
 				return;
 			}
 
-			Region previousClip = g.Clip;
-			using (Region dimRegion = new Region(g.VisibleClipBounds))
+			Rectangle exclude = Rectangle.Intersect(excludeRect, bounds);
+			if (exclude.IsEmpty)
 			{
-				dimRegion.Exclude(excludeRect);
-				g.SetClip(dimRegion, CombineMode.Replace);
-				g.DrawImageUnscaled(dimOverlay, 0, 0);
+				g.FillRectangle(dimBrush, bounds);
+				return;
 			}
 
-			g.Clip = previousClip;
+			if (exclude.Top > bounds.Top)
+			{
+				g.FillRectangle(dimBrush, bounds.Left, bounds.Top, bounds.Width, exclude.Top - bounds.Top);
+			}
+
+			if (exclude.Bottom < bounds.Bottom)
+			{
+				g.FillRectangle(dimBrush, bounds.Left, exclude.Bottom, bounds.Width, bounds.Bottom - exclude.Bottom);
+			}
+
+			if (exclude.Left > bounds.Left)
+			{
+				g.FillRectangle(dimBrush, bounds.Left, exclude.Top, exclude.Left - bounds.Left, exclude.Height);
+			}
+
+			if (exclude.Right < bounds.Right)
+			{
+				g.FillRectangle(dimBrush, exclude.Right, exclude.Top, bounds.Right - exclude.Right, exclude.Height);
+			}
 		}
 
 		private void PaintColorPickerMode(
@@ -305,7 +302,6 @@ namespace CloudShot.Overlay
 
 		public void Dispose()
 		{
-			dimOverlay?.Dispose();
 			screenshot = null;
 			dimBrush?.Dispose();
 			selectionBorderPen?.Dispose();

@@ -4,7 +4,7 @@ Quick reference for developers working on this codebase.
 
 ## Overview
 
-CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations, color picker, OCR, and SCP upload. It runs in the background and is triggered via `PrintScreen` or the tray icon.
+CloudShot is a Windows tray application for screen capture with region selection, selection repositioning, annotations (pen, rectangle, filled rectangle, pixelate), color picker, OCR, and SCP upload. It runs in the background and is triggered via `PrintScreen` or the tray icon.
 
 **Stack:** C# / .NET Framework 4.8, WinForms, `Microsoft.Windows.SDK.Contracts` (Windows OCR API).
 
@@ -47,7 +47,7 @@ Program.Main
 |------|----------------|
 | `ScreenCaptureService.cs` | Multi-monitor bounds + `CopyFromScreen` capture |
 | `CoordinateMapper.cs` | Screen ↔ client ↔ image coordinate conversion |
-| `DrawingElement.cs` | Pen/rectangle stroke model (`Points`, `IsPenMode`, `DrawingColor`) |
+| `DrawingElement.cs` | Annotation model (`Points`, `DrawingToolMode`, `DrawingColor`) |
 | `BitmapPixelReader.cs` | Fast pixel read via `LockBits` (color picker) |
 | `ScpUploadService.cs` | Runs the built-in `scp` (OpenSSH) to upload a file with SSH key auth; resolves host/user from `~/.ssh/config` |
 | `SshConfigResolver.cs` | Maps host/IP to SSH config alias or `user@host` before running scp |
@@ -65,7 +65,7 @@ Program.Main
 
 | File | Responsibility |
 |------|----------------|
-| `ImageExporter.cs` | Render selection + annotations to bitmap, save dialog, annotation drawing helpers |
+| `ImageExporter.cs` | Render selection + annotations to bitmap, save dialog, pixelation, annotation drawing helpers |
 
 ---
 
@@ -76,14 +76,16 @@ Program.Main
 | **Screen capture** | `Core/ScreenCaptureService.cs`, `MainForm.cs` | Captures all monitors into one bitmap |
 | **Region selection** | `ScreenshotOverlay.cs`, `Core/CoordinateMapper.cs` | Drag to select; resize handles after selection |
 | **Move selection** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs`, `Overlay/OverlayRenderer.cs` | Toolbar **Move** tool; drag inside selection to reposition with fixed width/height; annotations move with selection; no keyboard shortcut |
-| **Pen / rectangle drawing** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | `isPenMode` toggles stroke vs rectangle; disabled while `isMoveMode` is active |
+| **Pen / rectangle drawing** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | `DrawingToolMode.Pen` / `Rectangle`; disabled while `isMoveMode` is active |
+| **Filled rectangle** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | Toolbar-only; drag like rectangle; fills with drawing color |
+| **Pixelate** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | Toolbar-only; drag like rectangle; pixelates underlying screenshot (`PixelateBlockSize = 10`) |
 | **Floating toolbar** | `Overlay/CaptureToolbar.cs` | Appears near selection; emits `ActionRequested` |
 | **Keyboard shortcuts** | `Overlay/CaptureShortcutHandler.cs`, `AppSettings.cs` | Configurable; defaults in `ResetToDefaults()` |
 | **Copy to clipboard** | `ScreenshotOverlay.cs`, `MainForm.cs` | `Ctrl+C` or toolbar; fires `ScreenshotCaptured` |
 | **Save to file** | `Export/ImageExporter.cs` | `Ctrl+S`; PNG/JPEG via `SaveFileDialog` |
 | **Undo** | `ScreenshotOverlay.cs` | `Ctrl+Z`; removes last `DrawingElement` |
 | **Color picker (screen)** | `ScreenshotOverlay.cs`, `Overlay/OverlayRenderer.cs`, `Core/BitmapPixelReader.cs`, `Overlay/ColorFormatter.cs` | `Ctrl+V`; zoom preview; copies formatted color (RGB/HEX/HSL); no selection required |
-| **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for pen/rectangle stroke color |
+| **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for pen, rectangle, and filled rectangle stroke/fill color |
 | **OCR** | `ScreenshotOverlay.cs` (`PerformOcr`) | Uses `Windows.Media.Ocr.OcrEngine`; requires valid selection |
 | **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH private key, optional key passphrase); uses the built-in OpenSSH `scp` command. Passphrase-protected keys use `SSH_ASKPASS`. |
 | **Settings** | `AppSettings.cs`, `ConfigForm.cs` | Tray → Settings |
@@ -104,18 +106,21 @@ Program.Main
 | Color picker | `Ctrl+V` |
 | Cancel / close overlay | `Esc` |
 
-All overlay shortcuts are customizable in `ConfigForm` and stored in `AppSettings`. The **Move** tool is toolbar-only (no default keyboard shortcut).
+All overlay shortcuts are customizable in `ConfigForm` and stored in `AppSettings`. The **Move**, **Filled rectangle**, and **Pixelate** tools are toolbar-only (no default keyboard shortcut).
 
 ---
 
 ## Important Types & Events
 
 ```csharp
+// Annotation modes
+DrawingToolMode { Pen, Rectangle, FilledRectangle, Pixelate }
+
 // MainForm → overlay lifecycle
 ScreenshotOverlay.ScreenshotCaptured → ScreenshotEventArgs { Image }
 
 // Toolbar → overlay actions
-CaptureToolbar.ActionRequested → CaptureToolbarAction (PenMode, RectangleMode, Move, ColorPicker, Undo, Copy, Save, Ocr, Scp, Close)
+CaptureToolbar.ActionRequested → CaptureToolbarAction (PenMode, RectangleMode, FilledRectangleMode, PixelateMode, Move, ColorPicker, Undo, Copy, Save, Ocr, Scp, Close)
 
 // Keyboard → overlay actions
 CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
@@ -144,6 +149,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 | Add keyboard shortcut | `AppSettings.cs` → `CaptureShortcutHandler.cs` → `ConfigForm.cs` |
 | Change overlay visuals | `Overlay/OverlayRenderer.cs` |
 | Change export output | `Export/ImageExporter.cs` |
+| Change drawing tools / pixelate block size | `Export/ImageExporter.cs` (`PixelateBlockSize`), `Core/DrawingElement.cs` |
 | Fix multi-monitor issues | `Core/ScreenCaptureService.cs`, `Core/CoordinateMapper.cs` |
 | Change SCP behavior | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs` |
 | Change OCR behavior | `ScreenshotOverlay.cs` (`PerformOcr`, `ExtractTextFromImageAsync`) |
@@ -162,7 +168,8 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 ## Known Notes
 
 - `ScreenshotOverlay.cs` is the largest file (~1335 lines) — most capture logic lives here
-- Move tool uses `isMoveMode` / `isMoving` flags; resize handles and drawing are disabled while move mode is active
+- Active drawing tool is tracked via `currentDrawingMode` (`DrawingToolMode`) in `ScreenshotOverlay` and `CaptureToolbar`
+- Pixelate reads from the original screenshot and does not use the drawing color; block size is `ImageExporter.PixelateBlockSize` (default 10)
 - `isColorSelected` field in `ScreenshotOverlay` is currently unused (CS0414 warning)
 - `CaptureToolbar` requires `ControlStyles.SupportsTransparentBackColor` for `BackColor = Color.Transparent` (WinForms limitation)
 - Toolbar icons are drawn in code with GDI+ (`DrawIcon`); there are no SVG/image assets for toolbar buttons

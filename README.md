@@ -13,7 +13,7 @@ Get the latest release from [download page](https://borrageiros.github.io/CloudS
 
 - Region capture across multiple monitors
 - Move and resize the selection before exporting
-- Pen and rectangle drawing tools
+- Pen, rectangle, filled rectangle, and pixelate drawing tools
 - Color picker with zoom preview (RGB, HEX, HSL)
 - OCR with clipboard copy
 - SCP upload using the built-in OpenSSH client
@@ -23,6 +23,20 @@ Get the latest release from [download page](https://borrageiros.github.io/CloudS
 ## 🖱️ Usage
 
 Press `PrintScreen` or use the tray icon to start a capture. Select an area, then copy, save, run OCR, or upload.
+
+### Drawing tools
+
+After selecting a region, use the floating toolbar to annotate:
+
+| Tool | Description |
+|------|-------------|
+| Pen | Freehand stroke in the chosen drawing color |
+| Rectangle | Outline rectangle in the chosen drawing color |
+| Filled rectangle | Solid rectangle filled with the chosen drawing color |
+| Pixelate | Drag a rectangle to pixelate that area of the capture |
+| Move | Reposition the selection without changing its size |
+
+Set the drawing color with the **Color** button on the toolbar. **Filled rectangle** and **Pixelate** are toolbar-only (no keyboard shortcut).
 
 ### Default shortcuts
 
@@ -37,7 +51,7 @@ Press `PrintScreen` or use the tray icon to start a capture. Select an area, the
 | Color picker | `Ctrl+V` |
 | Cancel | `Esc` |
 
-All overlay shortcuts can be changed in Settings. The Move tool is available from the toolbar only.
+All overlay shortcuts can be changed in Settings. The Move, Filled rectangle, and Pixelate tools are available from the toolbar only.
 
 ## ⚙️ Settings
 

@@ -41,7 +41,7 @@ namespace CloudShot
 		private bool isMoving;
 		private bool isDrawing;
 		private bool isScreenshotValid;
-		private bool isPenMode = true;
+		private DrawingToolMode currentDrawingMode = DrawingToolMode.Pen;
 		private bool isMoveMode;
 		private bool isColorPickerMode;
 		private bool isColorSelected;
@@ -54,6 +54,7 @@ namespace CloudShot
 		private List<DrawingElement> drawingElements = new List<DrawingElement>();
 		private List<Point> currentLine;
 		private DrawingElement currentDrawingElement;
+		private Rectangle rectanglePreviewInvalidationBounds = Rectangle.Empty;
 
 		private Color selectedColor = Color.Empty;
 		private Point colorPickerPoint = Point.Empty;
@@ -127,10 +128,16 @@ namespace CloudShot
 			switch (action)
 			{
 				case CaptureToolbarAction.PenMode:
-					SetMode(true);
+					SetDrawingMode(DrawingToolMode.Pen);
 					break;
 				case CaptureToolbarAction.RectangleMode:
-					SetMode(false);
+					SetDrawingMode(DrawingToolMode.Rectangle);
+					break;
+				case CaptureToolbarAction.FilledRectangleMode:
+					SetDrawingMode(DrawingToolMode.FilledRectangle);
+					break;
+				case CaptureToolbarAction.PixelateMode:
+					SetDrawingMode(DrawingToolMode.Pixelate);
 					break;
 				case CaptureToolbarAction.Move:
 					SetMoveMode();
@@ -161,11 +168,11 @@ namespace CloudShot
 			}
 		}
 
-		private void SetMode(bool penMode)
+		private void SetDrawingMode(DrawingToolMode mode)
 		{
 			isMoveMode = false;
-			isPenMode = penMode;
-			captureToolbar.SetPenMode(penMode);
+			currentDrawingMode = mode;
+			captureToolbar.SetDrawingMode(mode);
 			UpdateCursorForCurrentMode();
 			InvalidateSelectionArea();
 		}
@@ -173,7 +180,7 @@ namespace CloudShot
 		private void SetMoveMode()
 		{
 			isMoveMode = true;
-			isPenMode = false;
+			currentDrawingMode = DrawingToolMode.Pen;
 			captureToolbar.SetMoveMode(true);
 			UpdateCursorForCurrentMode();
 			InvalidateSelectionArea();
@@ -187,7 +194,7 @@ namespace CloudShot
 				{
 					Cursor = Cursors.SizeAll;
 				}
-				else if (isPenMode)
+				else if (currentDrawingMode == DrawingToolMode.Pen)
 				{
 					Cursor = penCursor;
 				}
@@ -356,12 +363,14 @@ namespace CloudShot
 			    selectionRectangle.Width > 0)
 			{
 				isDrawing = true;
-				currentLine = isPenMode
-					? new List<Point> { e.Location }
-					: new List<Point> { e.Location, e.Location };
-				currentDrawingElement = new DrawingElement(currentLine, isPenMode, currentDrawingColor);
+				Point layerPoint = ImageExporter.ClientToLayer(e.Location, clientSelectionRect);
+				currentLine = currentDrawingMode == DrawingToolMode.Pen
+					? new List<Point> { layerPoint }
+					: new List<Point> { layerPoint, layerPoint };
+				currentDrawingElement = new DrawingElement(currentLine, currentDrawingMode, currentDrawingColor);
 				drawingElements.Add(currentDrawingElement);
-				Cursor = isPenMode ? penCursor : Cursors.Cross;
+				rectanglePreviewInvalidationBounds = Rectangle.Empty;
+				Cursor = currentDrawingMode == DrawingToolMode.Pen ? penCursor : Cursors.Cross;
 				return;
 			}
 
@@ -436,26 +445,32 @@ namespace CloudShot
 			{
 				if (currentDrawingElement.IsPenMode)
 				{
+					Point layerPoint = ImageExporter.ClientToLayer(e.Location, clientSelectionRect);
 					if (currentLine.Count == 0 ||
-					    Math.Abs(e.Location.X - currentLine[currentLine.Count - 1].X) > 2 ||
-					    Math.Abs(e.Location.Y - currentLine[currentLine.Count - 1].Y) > 2)
+					    Math.Abs(layerPoint.X - currentLine[currentLine.Count - 1].X) > 2 ||
+					    Math.Abs(layerPoint.Y - currentLine[currentLine.Count - 1].Y) > 2)
 					{
-						Point previousPoint = currentLine[currentLine.Count - 1];
-						currentLine.Add(e.Location);
-						DrawSegmentOnAnnotationLayer(previousPoint, e.Location, currentDrawingColor);
+						Point previousLayerPoint = currentLine[currentLine.Count - 1];
+						currentLine.Add(layerPoint);
+						DrawSegmentOnAnnotationLayer(previousLayerPoint, layerPoint, currentDrawingColor);
+						Point previousClientPoint = ImageExporter.LayerToClient(previousLayerPoint, clientSelectionRect);
 						Rectangle dirty = OverlayRenderer.GetDrawingInvalidationRect(e.Location, ImageExporter.DrawingPenSize);
-						dirty = Rectangle.Union(dirty, OverlayRenderer.GetDrawingInvalidationRect(previousPoint, ImageExporter.DrawingPenSize));
+						dirty = Rectangle.Union(dirty, OverlayRenderer.GetDrawingInvalidationRect(previousClientPoint, ImageExporter.DrawingPenSize));
 						Invalidate(dirty);
 					}
 				}
 				else if (currentLine.Count >= 2)
 				{
-					currentLine[1] = e.Location;
-					RebuildAnnotationLayer();
-					Rectangle dirty = OverlayRenderer.GetRectangleDrawingInvalidationRect(
-						currentLine[0],
-						currentLine[1],
+					currentLine[1] = ImageExporter.ClientToLayer(e.Location, clientSelectionRect);
+					Point clientStart = ImageExporter.LayerToClient(currentLine[0], clientSelectionRect);
+					Rectangle newBounds = OverlayRenderer.GetRectangleDrawingInvalidationRect(
+						clientStart,
+						e.Location,
 						ImageExporter.DrawingPenSize);
+					Rectangle dirty = rectanglePreviewInvalidationBounds.IsEmpty
+						? newBounds
+						: Rectangle.Union(rectanglePreviewInvalidationBounds, newBounds);
+					rectanglePreviewInvalidationBounds = newBounds;
 					Invalidate(dirty);
 				}
 
@@ -477,7 +492,7 @@ namespace CloudShot
 					{
 						SetResizeCursor(handleIndex);
 					}
-					else if (IsPointInsideSelectionRectangle(e.Location) && isPenMode)
+					else if (IsPointInsideSelectionRectangle(e.Location) && currentDrawingMode == DrawingToolMode.Pen)
 					{
 						Cursor = penCursor;
 					}
@@ -517,7 +532,7 @@ namespace CloudShot
 				UpdateResizeHandles();
 				RebuildAnnotationLayer();
 				UpdateToolbarPosition();
-				captureToolbar.SetPenMode(isPenMode);
+				captureToolbar.SetDrawingMode(currentDrawingMode);
 				captureToolbar.SetDrawingColor(currentDrawingColor);
 				captureToolbar.ShowAnimated();
 				InvalidateSelectionArea();
@@ -549,9 +564,21 @@ namespace CloudShot
 
 			if (isDrawing)
 			{
+				DrawingElement completedElement = currentDrawingElement;
 				isDrawing = false;
 				currentLine = null;
 				currentDrawingElement = null;
+
+				if (completedElement != null && completedElement.IsRectangleToolMode)
+				{
+					DrawElementOnAnnotationLayer(completedElement);
+					if (!rectanglePreviewInvalidationBounds.IsEmpty)
+					{
+						Invalidate(rectanglePreviewInvalidationBounds);
+					}
+				}
+
+				rectanglePreviewInvalidationBounds = Rectangle.Empty;
 			}
 		}
 
@@ -620,7 +647,23 @@ namespace CloudShot
 			using (Graphics g = Graphics.FromImage(annotationLayer))
 			{
 				g.SmoothingMode = SmoothingMode.AntiAlias;
-				ImageExporter.DrawAnnotationsOnLayer(g, drawingElements, clientSelectionRect);
+				ImageExporter.DrawAnnotationsOnLayer(g, drawingElements, screenshot, selectionRectangle);
+			}
+		}
+
+		private void DrawElementOnAnnotationLayer(DrawingElement element)
+		{
+			EnsureAnnotationLayer();
+
+			if (annotationLayer == null)
+			{
+				return;
+			}
+
+			using (Graphics g = Graphics.FromImage(annotationLayer))
+			{
+				g.SmoothingMode = SmoothingMode.AntiAlias;
+				ImageExporter.DrawElementOnLayer(g, element, screenshot, selectionRectangle);
 			}
 		}
 
@@ -635,15 +678,11 @@ namespace CloudShot
 
 			using (Graphics g = Graphics.FromImage(annotationLayer))
 			{
-				g.SmoothingMode = SmoothingMode.AntiAlias;
+				g.SmoothingMode = SmoothingMode.HighSpeed;
+				g.CompositingQuality = CompositingQuality.HighSpeed;
 				using (Pen pen = new Pen(color, ImageExporter.DrawingPenSize))
 				{
-					g.DrawLine(
-						pen,
-						from.X - clientSelectionRect.X,
-						from.Y - clientSelectionRect.Y,
-						to.X - clientSelectionRect.X,
-						to.Y - clientSelectionRect.Y);
+					g.DrawLine(pen, from, to);
 				}
 			}
 		}
@@ -760,21 +799,7 @@ namespace CloudShot
 			}
 
 			selectionRectangle = new Rectangle(newX, newY, selectionRectangle.Width, selectionRectangle.Height);
-			TranslateDrawingElements(dx, dy);
 			UpdateClientSelectionRect();
-			RebuildAnnotationLayer();
-		}
-
-		private void TranslateDrawingElements(int dx, int dy)
-		{
-			foreach (DrawingElement element in drawingElements)
-			{
-				for (int i = 0; i < element.Points.Count; i++)
-				{
-					Point point = element.Points[i];
-					element.Points[i] = new Point(point.X + dx, point.Y + dy);
-				}
-			}
 		}
 
 		private void ResizeSelectionFromHandle(Point currentPosition)
@@ -866,12 +891,16 @@ namespace CloudShot
 				PreviewSize = ColorPickerPreviewSize
 			};
 
+			DrawingElement inProgressDrawing = isDrawing && currentDrawingElement != null && currentDrawingElement.IsRectangleToolMode
+				? currentDrawingElement
+				: null;
+
 			overlayRenderer.Paint(
 				e.Graphics,
 				coordinateMapper,
 				isScreenshotValid,
 				isColorPickerMode,
-				isPenMode,
+				currentDrawingMode,
 				isMoveMode,
 				isSelecting,
 				selectionRectangle,
@@ -879,6 +908,7 @@ namespace CloudShot
 				resizeHandles,
 				annotationLayer,
 				clientSelectionRect,
+				inProgressDrawing,
 				colorPickerState,
 				settings,
 				lastMousePosition);

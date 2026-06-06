@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using CloudShot.Core;
 
 namespace CloudShot.Overlay
 {
@@ -10,6 +11,8 @@ namespace CloudShot.Overlay
 	{
 		PenMode,
 		RectangleMode,
+		FilledRectangleMode,
+		PixelateMode,
 		Move,
 		ColorPicker,
 		Undo,
@@ -40,6 +43,8 @@ namespace CloudShot.Overlay
 		{
 			CaptureToolbarAction.PenMode,
 			CaptureToolbarAction.RectangleMode,
+			CaptureToolbarAction.FilledRectangleMode,
+			CaptureToolbarAction.PixelateMode,
 			CaptureToolbarAction.Move,
 			CaptureToolbarAction.ColorPicker,
 			CaptureToolbarAction.Undo,
@@ -62,10 +67,10 @@ namespace CloudShot.Overlay
 		}
 
 		private readonly ToolTip toolTip = new ToolTip();
-		private readonly string[] shortcutLabels = new string[10];
+		private readonly string[] shortcutLabels = new string[12];
 		private readonly Timer fadeTimer = new Timer();
 
-		private bool isPenMode = true;
+		private DrawingToolMode currentDrawingMode = DrawingToolMode.Pen;
 		private bool isMoveMode;
 		private ToolbarOrientation orientation = ToolbarOrientation.Horizontal;
 		private Color drawingColor = Color.Red;
@@ -93,21 +98,21 @@ namespace CloudShot.Overlay
 			ConfigureTooltips();
 		}
 
-		public void SetPenMode(bool penMode)
+		public void SetDrawingMode(DrawingToolMode mode)
 		{
-			isPenMode = penMode;
+			currentDrawingMode = mode;
 			isMoveMode = false;
 			Invalidate();
+		}
+
+		public void SetPenMode(bool penMode)
+		{
+			SetDrawingMode(penMode ? DrawingToolMode.Pen : DrawingToolMode.Rectangle);
 		}
 
 		public void SetMoveMode(bool moveMode)
 		{
 			isMoveMode = moveMode;
-			if (moveMode)
-			{
-				isPenMode = false;
-			}
-
 			Invalidate();
 		}
 
@@ -365,7 +370,7 @@ namespace CloudShot.Overlay
 			for (int i = 0; i < index; i++)
 			{
 				offset += ButtonSize + ButtonSpacing;
-				if (i == 3 || i == 6)
+				if (i == 5 || i == 8)
 				{
 					offset += GroupSpacing - ButtonSpacing;
 				}
@@ -398,9 +403,13 @@ namespace CloudShot.Overlay
 			switch (action)
 			{
 				case CaptureToolbarAction.PenMode:
-					return isPenMode && !isMoveMode;
+					return currentDrawingMode == DrawingToolMode.Pen && !isMoveMode;
 				case CaptureToolbarAction.RectangleMode:
-					return !isPenMode && !isMoveMode;
+					return currentDrawingMode == DrawingToolMode.Rectangle && !isMoveMode;
+				case CaptureToolbarAction.FilledRectangleMode:
+					return currentDrawingMode == DrawingToolMode.FilledRectangle && !isMoveMode;
+				case CaptureToolbarAction.PixelateMode:
+					return currentDrawingMode == DrawingToolMode.Pixelate && !isMoveMode;
 				case CaptureToolbarAction.Move:
 					return isMoveMode;
 				default:
@@ -438,6 +447,27 @@ namespace CloudShot.Overlay
 					}
 					case CaptureToolbarAction.RectangleMode:
 						g.DrawRectangle(pen, cx - 8, cy - 6, 16, 12);
+						break;
+					case CaptureToolbarAction.FilledRectangleMode:
+						using (SolidBrush fillBrush = new SolidBrush(iconColor))
+						{
+							g.FillRectangle(fillBrush, cx - 8, cy - 6, 16, 12);
+						}
+						g.DrawRectangle(pen, cx - 8, cy - 6, 16, 12);
+						break;
+					case CaptureToolbarAction.PixelateMode:
+						for (int row = 0; row < 3; row++)
+						{
+							for (int col = 0; col < 3; col++)
+							{
+								int shade = (row + col) % 2 == 0 ? 210 : 140;
+								using (SolidBrush cellBrush = new SolidBrush(Color.FromArgb(shade, shade, shade)))
+								{
+									g.FillRectangle(cellBrush, cx - 9 + col * 6, cy - 9 + row * 6, 6, 6);
+								}
+							}
+						}
+						g.DrawRectangle(pen, cx - 9, cy - 9, 18, 18);
 						break;
 					case CaptureToolbarAction.Move:
 						g.DrawLine(pen, cx, cy - 9, cx, cy + 9);
@@ -558,6 +588,10 @@ namespace CloudShot.Overlay
 					return "Pen";
 				case CaptureToolbarAction.RectangleMode:
 					return "Rectangle";
+				case CaptureToolbarAction.FilledRectangleMode:
+					return "Filled rectangle";
+				case CaptureToolbarAction.PixelateMode:
+					return "Pixelate";
 				case CaptureToolbarAction.Move:
 					return "Move";
 				case CaptureToolbarAction.ColorPicker:

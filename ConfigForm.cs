@@ -19,9 +19,9 @@ namespace CloudShot
 		private static readonly Font BodyFont = new Font("Segoe UI", 9F);
 		private static readonly Font HintFont = new Font("Segoe UI", 8.5F);
 
-		private const string ScpHostPlaceholder = "user@server.com";
+		private const string ScpHostPlaceholder = "root@server.com";
 		private const string ScpRemotePathPlaceholder = "/var/www/screenshots/";
-		private const string ScpKeyPlaceholder = "C:\\path\\to\\key.pem";
+		private const string ScpKeyPlaceholder = "C:\\Users\\you\\.ssh\\id_ed25519";
 		private const string ScpClipboardPlaceholder = "https://my-server.com/screenshots/<image>";
 
 		private readonly AppSettings settings;
@@ -38,7 +38,7 @@ namespace CloudShot
 		private NumericUpDown numScpPort;
 		private TextBox txtScpRemotePath;
 		private TextBox txtScpKeyPath;
-		private TextBox txtScpPassword;
+		private TextBox txtScpKeyPassphrase;
 		private TextBox txtScpClipboardText;
 
 		private ComboBox cmbColorFormat;
@@ -218,7 +218,7 @@ namespace CloudShot
 
 			var description = new Label
 			{
-				Text = "Upload captures to a remote server over SSH. Provide the destination and authenticate with an SSH key or a password.",
+				Text = "Upload captures using the built-in scp command (OpenSSH). Host accepts user@server or an alias from ~/.ssh/config.",
 				Font = HintFont,
 				ForeColor = Color.FromArgb(100, 100, 110),
 				AutoSize = true,
@@ -245,12 +245,22 @@ namespace CloudShot
 			txtScpKeyPath = CreateInputField();
 			SetupPlaceholder(txtScpKeyPath, ScpKeyPlaceholder);
 
-			txtScpPassword = CreateInputField();
-			txtScpPassword.UseSystemPasswordChar = true;
-
-			var passwordHint = new Label
+			var keyHint = new Label
 			{
-				Text = "Leave empty when using an SSH key. Password authentication requires PuTTY's pscp in PATH.",
+				Text = "Path to your SSH private key (id_ed25519, id_rsa, ...).",
+				Font = HintFont,
+				ForeColor = Color.FromArgb(100, 100, 110),
+				AutoSize = true,
+				MaximumSize = new Size(460, 0),
+				Margin = new Padding(0, 0, 0, 4)
+			};
+
+			txtScpKeyPassphrase = CreateInputField();
+			txtScpKeyPassphrase.UseSystemPasswordChar = true;
+
+			var passphraseHint = new Label
+			{
+				Text = "Required if your private key is protected with a passphrase.",
 				Font = HintFont,
 				ForeColor = Color.FromArgb(100, 100, 110),
 				AutoSize = true,
@@ -277,8 +287,8 @@ namespace CloudShot
 			layout.Controls.Add(CreateFieldGroup("Host", null, txtScpHost), 0, row++);
 			layout.Controls.Add(CreateFieldGroup("Port", null, WrapFixedWidth(numScpPort)), 0, row++);
 			layout.Controls.Add(CreateFieldGroup("Remote path", null, txtScpRemotePath), 0, row++);
-			layout.Controls.Add(CreateFieldGroup("SSH key file (optional)", null, WrapWithBrowse(txtScpKeyPath)), 0, row++);
-			layout.Controls.Add(CreateFieldGroup("Password (optional)", passwordHint, WrapWithPasswordToggle(txtScpPassword)), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("SSH private key", keyHint, WrapWithBrowse(txtScpKeyPath)), 0, row++);
+			layout.Controls.Add(CreateFieldGroup("Key passphrase (optional)", passphraseHint, WrapWithPasswordToggle(txtScpKeyPassphrase)), 0, row++);
 			layout.Controls.Add(CreateFieldGroup("Clipboard text (optional)", clipboardHint, txtScpClipboardText), 0, row++);
 
 			page.Controls.Add(layout);
@@ -402,7 +412,7 @@ namespace CloudShot
 			using (var dialog = new OpenFileDialog
 			{
 				Title = "Select SSH private key",
-				Filter = "Key files (*.pem;*.ppk;*.key)|*.pem;*.ppk;*.key|All files (*.*)|*.*",
+				Filter = "All files (*.*)|*.*",
 				CheckFileExists = true
 			})
 			{
@@ -650,7 +660,7 @@ namespace CloudShot
 				: 22;
 			ApplyPlaceholder(txtScpRemotePath, settings.ScpRemotePath, ScpRemotePathPlaceholder);
 			ApplyPlaceholder(txtScpKeyPath, settings.ScpKeyPath, ScpKeyPlaceholder);
-			txtScpPassword.Text = settings.ScpPassword ?? "";
+			txtScpKeyPassphrase.Text = settings.ScpKeyPassphrase ?? "";
 			ApplyPlaceholder(txtScpClipboardText, settings.ScpClipboardText, ScpClipboardPlaceholder);
 
 			cmbColorFormat.SelectedItem = settings.ColorFormat;
@@ -674,7 +684,7 @@ namespace CloudShot
 			settings.ScpPort = (int)numScpPort.Value;
 			settings.ScpRemotePath = GetTextBoxValue(txtScpRemotePath);
 			settings.ScpKeyPath = GetTextBoxValue(txtScpKeyPath);
-			settings.ScpPassword = txtScpPassword.Text;
+			settings.ScpKeyPassphrase = txtScpKeyPassphrase.Text;
 			settings.ScpClipboardText = GetTextBoxValue(txtScpClipboardText);
 
 			settings.ColorFormat = cmbColorFormat.SelectedItem.ToString();

@@ -1056,27 +1056,13 @@ namespace CloudShot
 				return;
 			}
 
-			bool usePassword = !string.IsNullOrWhiteSpace(settings.ScpPassword);
-			string keyPath = ExpandUserPath(settings.ScpKeyPath);
-
-			if (!usePassword && !string.IsNullOrWhiteSpace(keyPath) && !File.Exists(keyPath))
-			{
-				if (MessageBox.Show(
-					    $"The specified key file does not exist:\n{keyPath}\n\nDo you want to continue anyway?",
-					    "SCP Configuration Warning",
-					    MessageBoxButtons.YesNo,
-					    MessageBoxIcon.Warning) == DialogResult.No)
-				{
-					return;
-				}
-			}
+			string tempFile = null;
+			bool uploadScheduled = false;
 
 			try
 			{
-				Cursor = Cursors.WaitCursor;
-
 				string fileName = $"cloudshot_{DateTime.Now:yyyyMMdd_HHmmss}.png";
-				string tempFile = Path.Combine(Path.GetTempPath(), fileName);
+				tempFile = Path.Combine(Path.GetTempPath(), fileName);
 
 				using (Bitmap selectedArea = RenderCurrentSelection(true))
 				{
@@ -1086,95 +1072,58 @@ namespace CloudShot
 					}
 
 					selectedArea.Save(tempFile, ImageFormat.Png);
+				}
 
-					int port = settings.ScpPort > 0 ? settings.ScpPort : 22;
-					string remotePath = settings.ScpRemotePath ?? "";
-					string target = $"{settings.ScpHost}:{remotePath}";
+				string host = settings.ScpHost;
+				int port = settings.ScpPort;
+				string remotePath = settings.ScpRemotePath;
+				string keyPath = settings.ScpKeyPath;
+				string keyPassphrase = settings.ScpKeyPassphrase;
+				string clipboardText = settings.ScpClipboardText;
+				string fileToUpload = tempFile;
 
-					using (System.Diagnostics.Process process = new System.Diagnostics.Process())
+				Close();
+				uploadScheduled = true;
+
+				Task.Run(() =>
+				{
+					ScpUploadResult result = new ScpUploadService().Upload(
+						fileToUpload, host, port, remotePath, keyPath, keyPassphrase);
+
+					foreach (Form form in Application.OpenForms)
 					{
-						if (usePassword)
+						if (form is MainForm mainForm)
 						{
-							process.StartInfo.FileName = "pscp";
-							process.StartInfo.Arguments =
-								$"-pw \"{settings.ScpPassword}\" -P {port} \"{tempFile}\" \"{target}\"";
-							process.StartInfo.RedirectStandardInput = true;
-						}
-						else
-						{
-							string keyArg = string.IsNullOrWhiteSpace(keyPath) ? "" : $"-i \"{keyPath}\" ";
-							process.StartInfo.FileName = "scp";
-							process.StartInfo.Arguments =
-								$"{keyArg}-P {port} -o StrictHostKeyChecking=no -o BatchMode=yes \"{tempFile}\" \"{target}\"";
-						}
-
-						process.StartInfo.UseShellExecute = false;
-						process.StartInfo.CreateNoWindow = true;
-						process.StartInfo.RedirectStandardOutput = true;
-						process.StartInfo.RedirectStandardError = true;
-						process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-						process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-
-						StringBuilder error = new StringBuilder();
-						process.ErrorDataReceived += (s, e) =>
-						{
-							if (!string.IsNullOrEmpty(e.Data))
+							mainForm.BeginInvoke(new Action(() =>
 							{
-								error.AppendLine(e.Data);
-							}
-						};
+								try
+								{
+									if (result.Success)
+									{
+										if (!string.IsNullOrWhiteSpace(clipboardText) &&
+										    clipboardText.Contains("<image>"))
+										{
+											Clipboard.SetText(clipboardText.Replace("<image>", fileName));
+										}
 
-						try
-						{
-							process.Start();
-						}
-						catch (System.ComponentModel.Win32Exception)
-						{
-							string tool = usePassword ? "pscp (PuTTY)" : "scp (OpenSSH client)";
-							MessageBox.Show(
-								$"Could not start {tool}.\nMake sure it is installed and available in the system PATH.",
-								"SCP Error",
-								MessageBoxButtons.OK,
-								MessageBoxIcon.Error);
+										NotifyScpCompleted(fileName, clipboardText);
+									}
+									else
+									{
+										NotifyScpFailed(result.ErrorMessage);
+									}
+								}
+								finally
+								{
+									DeleteTempFile(fileToUpload);
+								}
+							}));
 							return;
 						}
-
-						process.BeginErrorReadLine();
-
-						if (usePassword)
-						{
-							process.StandardInput.WriteLine("y");
-							process.StandardInput.Close();
-						}
-
-						process.WaitForExit();
-
-						if (process.ExitCode == 0)
-						{
-							if (!string.IsNullOrWhiteSpace(settings.ScpClipboardText) &&
-							    settings.ScpClipboardText.Contains("<image>"))
-							{
-								Clipboard.SetText(settings.ScpClipboardText.Replace("<image>", Path.GetFileName(tempFile)));
-							}
-
-							BeginInvoke(new Action(() =>
-							{
-								Close();
-								NotifyScpCompleted(Path.GetFileName(tempFile));
-							}));
-						}
-						else
-						{
-							string errorMsg = error.ToString().Trim();
-							if (string.IsNullOrEmpty(errorMsg))
-							{
-								errorMsg = "No specific error message received. Please verify the SCP configuration.";
-							}
-
-							MessageBox.Show($"Error executing SCP:\n{errorMsg}", "Error SCP", MessageBoxButtons.OK, MessageBoxIcon.Error);
-						}
 					}
-				}
+
+					DeleteTempFile(fileToUpload);
+				});
 			}
 			catch (Exception ex)
 			{
@@ -1182,23 +1131,11 @@ namespace CloudShot
 			}
 			finally
 			{
-				Cursor = Cursors.Default;
+				if (!uploadScheduled)
+				{
+					DeleteTempFile(tempFile);
+				}
 			}
-		}
-
-		private static string ExpandUserPath(string path)
-		{
-			if (string.IsNullOrWhiteSpace(path))
-			{
-				return path;
-			}
-
-			if (path.StartsWith("~"))
-			{
-				return path.Replace("~", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-			}
-
-			return path;
 		}
 
 		private void ActivateColorPicker()
@@ -1319,19 +1256,47 @@ namespace CloudShot
 			}
 		}
 
-		private void NotifyScpCompleted(string fileName)
+		private static void NotifyScpCompleted(string fileName, string scpClipboardText)
 		{
 			foreach (Form form in Application.OpenForms)
 			{
 				if (form is MainForm mainForm)
 				{
-					string clipboardInfo = string.IsNullOrWhiteSpace(settings.ScpClipboardText)
+					string clipboardInfo = string.IsNullOrWhiteSpace(scpClipboardText)
 						? string.Empty
 						: "\nThe link has been copied to the clipboard.";
 
 					mainForm.ShowNotification("SCP Upload Complete", $"Image {fileName} uploaded successfully.{clipboardInfo}");
 					return;
 				}
+			}
+		}
+
+		private static void NotifyScpFailed(string errorMessage)
+		{
+			foreach (Form form in Application.OpenForms)
+			{
+				if (form is MainForm mainForm)
+				{
+					MessageBox.Show(mainForm, $"Error uploading via SCP:\n{errorMessage}", "SCP Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+					return;
+				}
+			}
+		}
+
+		private static void DeleteTempFile(string path)
+		{
+			if (path == null)
+			{
+				return;
+			}
+
+			try
+			{
+				File.Delete(path);
+			}
+			catch
+			{
 			}
 		}
 

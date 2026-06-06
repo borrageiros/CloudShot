@@ -49,6 +49,8 @@ Program.Main
 | `CoordinateMapper.cs` | Screen ↔ client ↔ image coordinate conversion |
 | `DrawingElement.cs` | Pen/rectangle stroke model (`Points`, `IsPenMode`, `DrawingColor`) |
 | `BitmapPixelReader.cs` | Fast pixel read via `LockBits` (color picker) |
+| `ScpUploadService.cs` | Runs the built-in `scp` (OpenSSH) to upload a file with SSH key auth; resolves host/user from `~/.ssh/config` |
+| `SshConfigResolver.cs` | Maps host/IP to SSH config alias or `user@host` before running scp |
 
 ### `Overlay/`
 
@@ -83,7 +85,7 @@ Program.Main
 | **Color picker (screen)** | `ScreenshotOverlay.cs`, `Overlay/OverlayRenderer.cs`, `Core/BitmapPixelReader.cs`, `Overlay/ColorFormatter.cs` | `Ctrl+V`; zoom preview; copies formatted color (RGB/HEX/HSL); no selection required |
 | **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for pen/rectangle stroke color |
 | **OCR** | `ScreenshotOverlay.cs` (`PerformOcr`) | Uses `Windows.Media.Ocr.OcrEngine`; requires valid selection |
-| **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH key, password); uses `scp` for key auth and `pscp` for password auth |
+| **SCP upload** | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs`, `AppSettings.cs`, `ConfigForm.cs` | Structured config (host, port, remote path, SSH private key, optional key passphrase); uses the built-in OpenSSH `scp` command. Passphrase-protected keys use `SSH_ASKPASS`. |
 | **Settings** | `AppSettings.cs`, `ConfigForm.cs` | Tray → Settings |
 | **Start with Windows** | `MainForm.cs`, `ConfigForm.cs`, `AppSettings.cs` | Registry `HKCU\...\Run\CloudShot` |
 
@@ -143,7 +145,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 | Change overlay visuals | `Overlay/OverlayRenderer.cs` |
 | Change export output | `Export/ImageExporter.cs` |
 | Fix multi-monitor issues | `Core/ScreenCaptureService.cs`, `Core/CoordinateMapper.cs` |
-| Change SCP behavior | `ScreenshotOverlay.cs` (`PerformScp`) |
+| Change SCP behavior | `ScreenshotOverlay.cs` (`PerformScp`), `Core/ScpUploadService.cs` |
 | Change OCR behavior | `ScreenshotOverlay.cs` (`PerformOcr`, `ExtractTextFromImageAsync`) |
 
 ---

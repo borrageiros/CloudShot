@@ -15,14 +15,14 @@ namespace CloudShot
 
 	public class KeyboardHook : IDisposable
 	{
-		// Importaciones de las API de Windows
+		// Windows API imports
 		[DllImport("user32.dll")]
 		private static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
 
 		[DllImport("user32.dll")]
 		private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-		// Constantes para los modificadores
+		// Modifier key constants
 		private const int WM_HOTKEY = 0x0312;
 
 		private readonly Window window = new Window();

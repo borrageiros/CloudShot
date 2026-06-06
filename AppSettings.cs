@@ -30,7 +30,7 @@ namespace CloudShot
 		public int ScpPort { get; set; }
 		public string ScpRemotePath { get; set; }
 		public string ScpKeyPath { get; set; }
-		public string ScpPassword { get; set; }
+		public string ScpKeyPassphrase { get; set; }
 		public string ScpClipboardText { get; set; }
 
 		// Color picker configuration
@@ -58,7 +58,7 @@ namespace CloudShot
 			ScpPort = 22;
 			ScpRemotePath = "";
 			ScpKeyPath = "";
-			ScpPassword = "";
+			ScpKeyPassphrase = "";
 			ScpClipboardText = "";
 			ColorFormat = "RGB";
 		}

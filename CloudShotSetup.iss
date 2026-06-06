@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0"
+  #define MyAppVersion "2.1"
 #endif
 
 #ifndef MyOutputBaseFilename
@@ -97,7 +97,7 @@ begin
         '  <ScpPort>22</ScpPort>' + #13#10 +
         '  <ScpRemotePath>' + ScpRemotePath + '</ScpRemotePath>' + #13#10 +
         '  <ScpKeyPath>' + ScpKeyPath + '</ScpKeyPath>' + #13#10 +
-        '  <ScpPassword></ScpPassword>' + #13#10 +
+        '  <ScpKeyPassphrase></ScpKeyPassphrase>' + #13#10 +
         '  <ScpClipboardText>' + ScpClipboard + '</ScpClipboardText>' + #13#10 +
         '  <ColorFormat>RGB</ColorFormat>' + #13#10 +
         '</AppSettings>', False);

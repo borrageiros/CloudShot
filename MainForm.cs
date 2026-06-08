@@ -142,20 +142,15 @@ namespace CloudShot
 
     private void CaptureScreen()
     {
+      if (overlay != null && !overlay.IsDisposed)
+      {
+        return;
+      }
+
       Bitmap screenShot = null;
 
       try
       {
-        if (overlay != null)
-        {
-          try
-          {
-            overlay.Dispose();
-            overlay = null;
-          }
-          catch { }
-        }
-
         screenShot = ScreenCaptureService.CaptureAllScreens();
 
         this.Invoke(new Action(() =>
@@ -164,6 +159,7 @@ namespace CloudShot
           {
             overlay = new ScreenshotOverlay(screenShot);
             overlay.ScreenshotCaptured += OnScreenshotCaptured;
+            overlay.FormClosed += OnOverlayClosed;
             overlay.Show();
             screenShot = null;
           }
@@ -182,6 +178,14 @@ namespace CloudShot
       }
     }
 
+    private void OnOverlayClosed(object sender, FormClosedEventArgs e)
+    {
+      if (overlay == sender)
+      {
+        overlay = null;
+      }
+    }
+
     private void OnScreenshotCaptured(object sender, ScreenshotEventArgs e)
     {
       try
@@ -191,7 +195,10 @@ namespace CloudShot
           // Copy the image to the clipboard
           Clipboard.SetImage(e.Image);
 
-          ToastNotificationService.Show("CloudShot", "Screenshot copied to clipboard");
+          if (settings.ShouldNotify(NotificationCategory.Copy))
+          {
+            ToastNotificationService.Show("CloudShot", "Screenshot copied to clipboard");
+          }
         }
       }
       catch (Exception ex)
@@ -206,7 +213,7 @@ namespace CloudShot
       {
         UpdateCheckResult result = await UpdateService.CheckForUpdatesAsync();
 
-        if (result != null && result.UpdateAvailable)
+        if (result != null && result.UpdateAvailable && settings.ShouldNotify(NotificationCategory.Update))
         {
           ToastNotificationService.ShowWithUrl(
               "CloudShot",

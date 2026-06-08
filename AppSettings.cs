@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Xml.Serialization;
+using CloudShot.Core;
+using CloudShot.Overlay;
 
 namespace CloudShot
 {
@@ -51,6 +53,12 @@ namespace CloudShot
 		// Default drawing color (hex format, e.g. #FF0000)
 		public string DefaultDrawingColor { get; set; }
 
+		// Default drawing tool preselected when a capture starts
+		public DrawingToolMode DefaultTool { get; set; }
+
+		// Default position where the capture toolbar appears first (falls back if it does not fit)
+		public ToolbarPosition ToolbarDefaultPosition { get; set; }
+
 		public int SettingsVersion { get; set; }
 
 		public bool ToolPenEnabled { get; set; }
@@ -71,6 +79,19 @@ namespace CloudShot
 		public bool ToolOcrEnabled { get; set; }
 		public bool ToolScpEnabled { get; set; }
 		public bool ToolCloseEnabled { get; set; }
+
+		public bool ReSelectAreaOnOutsideClick { get; set; }
+
+		public int MaxHistory { get; set; }
+
+		// Notifications
+		public bool NotificationsEnabled { get; set; }
+		public bool NotifyOnCopy { get; set; }
+		public bool NotifyOnSave { get; set; }
+		public bool NotifyOnUpdate { get; set; }
+		public bool NotifyOnOcr { get; set; }
+		public bool NotifyOnScp { get; set; }
+		public bool NotifyOnColorPicker { get; set; }
 
 		// Constructor
 		public AppSettings()
@@ -99,45 +120,48 @@ namespace CloudShot
 			ScpClipboardText = "";
 			ColorFormat = "RGB";
 			DefaultDrawingColor = "#FF0000";
+			DefaultTool = DrawingToolMode.Pen;
+			ToolbarDefaultPosition = ToolbarPosition.Top;
 			ResetToolbarToolsToDefaults();
-			SettingsVersion = 5;
+			ReSelectAreaOnOutsideClick = true;
+			MaxHistory = 100;
+			NotificationsEnabled = true;
+			NotifyOnCopy = true;
+			NotifyOnSave = true;
+			NotifyOnUpdate = true;
+			NotifyOnOcr = true;
+			NotifyOnScp = true;
+			NotifyOnColorPicker = true;
+			SettingsVersion = 10;
+		}
+
+		public bool ShouldNotify(NotificationCategory category)
+		{
+			if (!NotificationsEnabled)
+			{
+				return false;
+			}
+
+			switch (category)
+			{
+				case NotificationCategory.Copy: return NotifyOnCopy;
+				case NotificationCategory.Save: return NotifyOnSave;
+				case NotificationCategory.Update: return NotifyOnUpdate;
+				case NotificationCategory.Ocr: return NotifyOnOcr;
+				case NotificationCategory.Scp: return NotifyOnScp;
+				case NotificationCategory.ColorPicker: return NotifyOnColorPicker;
+				default: return true;
+			}
 		}
 
 		public void ResetToolShortcutsToDefaults()
 		{
-			PenToolShortcut = Keys.P;
-			RectangleToolShortcut = Keys.R;
-			FilledRectangleToolShortcut = Keys.F;
-			PixelateToolShortcut = Keys.X;
-			ArrowToolShortcut = Keys.A;
-			HighlighterToolShortcut = Keys.H;
-			LineToolShortcut = Keys.L;
-			StepsToolShortcut = Keys.N;
-			TextToolShortcut = Keys.T;
-			EraserToolShortcut = Keys.E;
-			MoveToolShortcut = Keys.M;
+			CaptureToolRegistry.ResetDrawingToolShortcutsToDefaults(this);
 		}
 
 		public void ResetToolbarToolsToDefaults()
 		{
-			ToolPenEnabled = true;
-			ToolRectangleEnabled = true;
-			ToolFilledRectangleEnabled = true;
-			ToolPixelateEnabled = true;
-			ToolArrowEnabled = true;
-			ToolHighlighterEnabled = true;
-			ToolLineEnabled = true;
-			ToolStepsEnabled = true;
-			ToolTextEnabled = true;
-			ToolEraserEnabled = true;
-			ToolMoveEnabled = true;
-			ToolColorPickerEnabled = true;
-			ToolUndoEnabled = true;
-			ToolCopyEnabled = true;
-			ToolSaveEnabled = true;
-			ToolOcrEnabled = true;
-			ToolScpEnabled = true;
-			ToolCloseEnabled = true;
+			CaptureToolRegistry.ResetToolEnabledToDefaults(this);
 		}
 
 		private void ApplyVersionMigrations()
@@ -167,6 +191,43 @@ namespace CloudShot
 				if (EraserToolShortcut == Keys.None)
 					EraserToolShortcut = Keys.E;
 				SettingsVersion = 5;
+			}
+
+			if (SettingsVersion < 6)
+			{
+				ReSelectAreaOnOutsideClick = true;
+				SettingsVersion = 6;
+			}
+
+			if (SettingsVersion < 7)
+			{
+				if (MaxHistory <= 0)
+					MaxHistory = 100;
+				SettingsVersion = 7;
+			}
+
+			if (SettingsVersion < 8)
+			{
+				DefaultTool = DrawingToolMode.Pen;
+				SettingsVersion = 8;
+			}
+
+			if (SettingsVersion < 9)
+			{
+				ToolbarDefaultPosition = ToolbarPosition.Top;
+				SettingsVersion = 9;
+			}
+
+			if (SettingsVersion < 10)
+			{
+				NotificationsEnabled = true;
+				NotifyOnCopy = true;
+				NotifyOnSave = true;
+				NotifyOnUpdate = true;
+				NotifyOnOcr = true;
+				NotifyOnScp = true;
+				NotifyOnColorPicker = true;
+				SettingsVersion = 10;
 			}
 		}
 
@@ -227,5 +288,15 @@ namespace CloudShot
 				Console.WriteLine($"Error saving configuration: {ex.Message}");
 			}
 		}
+	}
+
+	public enum NotificationCategory
+	{
+		Copy,
+		Save,
+		Update,
+		Ocr,
+		Scp,
+		ColorPicker
 	}
 }

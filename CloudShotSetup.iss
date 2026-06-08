@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "2.8"
+  #define MyAppVersion "2.9"
 #endif
 
 #ifndef MyOutputBaseFilename

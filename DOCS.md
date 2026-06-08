@@ -74,11 +74,11 @@ Program.Main
 
 | `MainForm.cs` | Tray icon, hotkey hook, capture orchestration, `ScreenshotEventArgs` |
 
-| `ScreenshotOverlay.cs` | **Main capture UI** — selection, move, drawing, color picker, OCR, SCP, keyboard/mouse handling |
+| `AppSettings.cs` | Persistent settings (shortcuts, SCP, color format, default drawing color, startup, toolbar tool visibility, max undo history, notification preferences); `ShouldNotify(NotificationCategory)` gates each notification |
 
-| `AppSettings.cs` | Persistent settings (shortcuts, SCP, color format, default drawing color, startup, toolbar tool visibility) |
+| `Config/ConfigForm.cs` | Settings form shell — fields, constructor, `LoadSettings` / `SaveSettings`, footer actions |
 
-| `ConfigForm.cs` | Settings UI (shortcuts, SCP config, color format, default drawing color, startup toggle, toolbar tool toggles) |
+| `Config/HotkeyControl.cs` | Read-only text box for capturing keyboard shortcuts |
 
 | `KeyboardHook.cs` | Global hotkey via Win32 `RegisterHotKey` |
 
@@ -112,6 +112,8 @@ Program.Main
 
 | `SshConfigResolver.cs` | Maps host/IP to SSH config alias or `user@host` before running scp |
 
+| `CaptureToolRegistry.cs` | Single source of truth for toolbar tool catalog: display order, enabled flags, shortcuts, labels, groups, SCP host visibility |
+
 | `UpdateService.cs` | Queries `releases/latest` on GitHub, parses `tag_name`, and reports whether a newer version exists |
 
 
@@ -124,13 +126,55 @@ Program.Main
 
 |------|----------------|
 
+| `ScreenshotOverlay.cs` | **Main capture form** — fields, constructor, initialization, lifecycle |
+
+| `ScreenshotOverlay.Input.cs` | Mouse down/move/up handlers |
+
+| `ScreenshotOverlay.Selection.cs` | Selection, resize handles, move, invalidation, toolbar reposition |
+
+| `ScreenshotOverlay.Drawing.cs` | Annotations, text editor, eraser, undo, annotation layer |
+
+| `ScreenshotOverlay.Tools.cs` | Toolbar/shortcut actions, drawing mode, cursor |
+
+| `ScreenshotOverlay.Paint.cs` | `Paint` handler and `RenderCurrentSelection` |
+
+| `ScreenshotOverlay.Export.cs` | Copy, save, OCR, SCP, notifications |
+
+| `ScreenshotOverlay.ColorPicker.cs` | Screen color picker mode |
+
 | `OverlayRenderer.cs` | All overlay painting: dim layer, selection, handles, annotations, color picker UI |
 
-| `CaptureToolbar.cs` | Floating toolbar (`CaptureToolbarAction` enum, dynamic sizing, tooltips, GDI+ line icons) |
+| `CaptureToolbar.cs` | Floating toolbar control (`CaptureToolbarAction` enum, layout, hit-testing, tooltips) |
+
+| `CaptureToolbar.Icons.cs` | GDI+ toolbar icon drawing |
 
 | `CaptureShortcutHandler.cs` | Maps keyboard shortcuts → `CaptureShortcutAction` |
 
 | `ColorFormatter.cs` | RGB / HEX / HSL string formatting |
+
+
+
+### `Config/`
+
+
+
+| File | Responsibility |
+
+|------|----------------|
+
+| `ConfigForm.cs` | Form shell, settings load/save, footer button handlers |
+
+| `ConfigForm.GeneralTab.cs` | General tab UI |
+
+| `ConfigForm.ShortcutsTab.cs` | Shortcuts tab UI and duplicate validation |
+
+| `ConfigForm.ScpTab.cs` | SCP tab UI |
+
+| `ConfigForm.NotificationsTab.cs` | Notifications tab UI (master toggle + per-event toggles) |
+
+| `ConfigForm.AboutTab.cs` | About tab UI and update check |
+
+| `ConfigForm.UiHelpers.cs` | Shared layout helpers, footer, placeholders, color parsing |
 
 
 
@@ -160,11 +204,11 @@ Program.Main
 
 | **Screen capture** | `Core/ScreenCaptureService.cs`, `MainForm.cs` | Captures all monitors into one bitmap |
 
-| **Region selection** | `ScreenshotOverlay.cs`, `Core/CoordinateMapper.cs` | Drag to select; resize handles after selection |
+| **Region selection** | `Overlay/ScreenshotOverlay*.cs`, `Core/CoordinateMapper.cs` | Drag to select; resize handles after selection |
 
-| **Move selection** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs`, `Overlay/OverlayRenderer.cs` | Toolbar **Move** tool; drag inside selection to reposition with fixed width/height; annotations are anchored to the screen and do **not** move/resize with the selection; no keyboard shortcut |
+| **Move selection** | `Overlay/ScreenshotOverlay.Selection.cs`, `Overlay/CaptureToolbar.cs`, `Overlay/OverlayRenderer.cs` | Toolbar **Move** tool; drag inside selection to reposition with fixed width/height; annotations are anchored to the screen and do **not** move/resize with the selection; no keyboard shortcut |
 
-| **Pen / rectangle drawing** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | `DrawingToolMode.Pen` / `Rectangle`; disabled while `isMoveMode` is active |
+| **Pen / rectangle drawing** | `Overlay/ScreenshotOverlay.Drawing.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | `DrawingToolMode.Pen` / `Rectangle`; disabled while `isMoveMode` is active |
 
 | **Filled rectangle** | `ScreenshotOverlay.cs`, `Core/DrawingElement.cs`, `Export/ImageExporter.cs` | Toolbar-only; drag like rectangle; fills with drawing color |
 
@@ -184,6 +228,8 @@ Program.Main
 
 | **Floating toolbar** | `Overlay/CaptureToolbar.cs` | Appears near selection; emits `ActionRequested`; size adapts to visible tools |
 
+| **Toolbar default position** | `AppSettings.cs` (`ToolbarDefaultPosition`), `ConfigForm.cs`, `Overlay/CaptureToolbar.cs` | Configurable in Settings → General → Toolbar position; `ToolbarPosition` enum (Top/Bottom/Left/Right); `CalculateBestLocation` tries the preferred position first then falls back; default `Top` |
+
 | **Toolbar tool visibility** | `AppSettings.cs`, `ConfigForm.cs`, `Overlay/CaptureToolbar.cs` | Per-tool `Tool*Enabled` booleans in Settings → General; `ConfigureVisibleTools()` filters buttons; SCP also requires non-empty `ScpHost` |
 
 | **Keyboard shortcuts** | `Overlay/CaptureShortcutHandler.cs`, `AppSettings.cs` | Configurable; defaults in `ResetToDefaults()`; shortcuts work even when toolbar button is hidden |
@@ -192,13 +238,17 @@ Program.Main
 
 | **Save to file** | `Export/ImageExporter.cs` | `Ctrl+S`; PNG/JPEG via `SaveFileDialog` |
 
-| **Undo** | `ScreenshotOverlay.cs` | `Ctrl+Z`; removes last `DrawingElement` |
+| **Undo** | `ScreenshotOverlay.cs` | `Ctrl+Z`; removes last `DrawingElement`; number of available undo steps is capped by `AppSettings.MaxHistory` (default 100), tracked via `undoableHistoryCount` |
+
+| **Max undo history** | `AppSettings.cs` (`MaxHistory`), `ConfigForm.cs`, `ScreenshotOverlay.cs` | Settings → General → History; limits how many `Ctrl+Z` can be performed (default 100); older annotations stay visible/exported but can no longer be undone |
 
 | **Color picker (screen)** | `ScreenshotOverlay.cs`, `Overlay/OverlayRenderer.cs`, `Core/BitmapPixelReader.cs`, `Overlay/ColorFormatter.cs` | `Ctrl+V`; zoom preview; copies formatted color (RGB/HEX/HSL); no selection required |
 
 | **Drawing color** | `ScreenshotOverlay.cs`, `Overlay/CaptureToolbar.cs` | Toolbar color button opens `ColorDialog` for annotation tools |
 
 | **Default drawing color** | `AppSettings.cs` (`DefaultDrawingColor`), `ConfigForm.cs`, `ScreenshotOverlay.cs` | Configurable in Settings → General → Drawing; stored as hex; `ScreenshotOverlay` initializes `currentDrawingColor` from it (default `#FF0000`) |
+
+| **Default tool** | `AppSettings.cs` (`DefaultTool`), `ConfigForm.cs`, `ScreenshotOverlay.cs` | Configurable in Settings → General → Default tool; stored as `DrawingToolMode`; `ScreenshotOverlay` initializes `currentDrawingMode` from it (default `Pen`); falls back to the first enabled tool via `EnsureInitialDrawingModeEnabled` if the chosen tool is hidden |
 
 | **OCR** | `ScreenshotOverlay.cs` (`PerformOcr`) | Uses `Windows.Media.Ocr.OcrEngine`; requires valid selection |
 
@@ -210,7 +260,9 @@ Program.Main
 
 | **Update check** | `Core/UpdateService.cs`, `MainForm.cs` (`CheckForUpdatesOnStartup`) | Runs once on `MainForm.Load`; shows a Windows toast notification if a newer GitHub release exists; clicking it opens the download page (`https://borrageiros.github.io/CloudShot/`) |
 
-| **Notifications** | `Core/ToastNotificationService.cs`, `MainForm.cs` | Windows toast notifications for capture-to-clipboard, OCR, SCP, color picker, and updates; replaces `NotifyIcon.ShowBalloonTip` |
+| **Notifications** | `Core/ToastNotificationService.cs`, `MainForm.cs` | Windows toast notifications for capture-to-clipboard, save, OCR, SCP, color picker, and updates; replaces `NotifyIcon.ShowBalloonTip` |
+
+| **Notification settings** | `AppSettings.cs` (`NotificationsEnabled`, `NotifyOn*`, `ShouldNotify`), `Config/ConfigForm.NotificationsTab.cs` | Settings → Notifications tab (between SCP and About); master `NotificationsEnabled` toggle plus per-event toggles (copy, save, OCR, SCP, color picker, update); each call site checks `settings.ShouldNotify(NotificationCategory.*)` before showing a toast |
 
 
 
@@ -346,15 +398,15 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 |------|------------|
 
-| Change capture behavior | `ScreenshotOverlay.cs` |
+| Change capture behavior | `Overlay/ScreenshotOverlay*.cs` (start with `Input.cs` / `Selection.cs`) |
 
-| Change move-selection behavior | `ScreenshotOverlay.cs` (`MoveSelection`); annotations are screen-anchored and not translated |
+| Change move-selection behavior | `Overlay/ScreenshotOverlay.Selection.cs` (`MoveSelection`); annotations are screen-anchored and not translated |
 
-| Add toolbar button | `Overlay/CaptureToolbar.cs` + `AppSettings.cs` + `ConfigForm.cs` + handle in `ScreenshotOverlay.cs` |
+| Add toolbar button | `Core/CaptureToolRegistry.cs` (catalog entry) + `Overlay/CaptureToolbar.Icons.cs` + `AppSettings.cs` (XML properties) + handle in `Overlay/ScreenshotOverlay.Tools.cs` |
 
 | Change toolbar tool visibility defaults | `AppSettings.cs` (`ResetToolbarToolsToDefaults`) |
 
-| Add keyboard shortcut | `AppSettings.cs` → `CaptureShortcutHandler.cs` → `ConfigForm.cs` |
+| Add keyboard shortcut | `AppSettings.cs` → `CaptureShortcutHandler.cs` → `Config/ConfigForm.ShortcutsTab.cs` |
 
 | Change overlay visuals | `Overlay/OverlayRenderer.cs` |
 
@@ -396,7 +448,7 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 
 
-- `ScreenshotOverlay.cs` is the largest file (~1500 lines) — most capture logic lives here
+- `ScreenshotOverlay` is a `partial` class split across `Overlay/ScreenshotOverlay*.cs`; most capture logic lives there
 
 - Active drawing tool is tracked via `currentDrawingMode` (`DrawingToolMode`) in `ScreenshotOverlay` and `CaptureToolbar`
 
@@ -412,9 +464,9 @@ CaptureShortcutHandler.TryHandle(...) → CaptureShortcutAction
 
 - SCP toolbar button requires both `ToolScpEnabled` and a non-empty `ScpHost`
 
-- `AppSettings.SettingsVersion` migrates older settings files (v2 adds toolbar tool booleans, all enabled by default; v3 adds `ToolTextEnabled`; v4 adds tool keyboard shortcuts; v5 adds `ToolEraserEnabled` and `EraserToolShortcut`, default `E`)
+- `AppSettings.SettingsVersion` migrates older settings files (v2 adds toolbar tool booleans, all enabled by default; v3 adds `ToolTextEnabled`; v4 adds tool keyboard shortcuts; v5 adds `ToolEraserEnabled` and `EraserToolShortcut`, default `E`; v6 adds `ReSelectAreaOnOutsideClick`; v7 adds `MaxHistory`, default 100; v8 adds `DefaultTool`, default `Pen`; v9 adds `ToolbarDefaultPosition`, default `Top`; v10 adds notification preferences `NotificationsEnabled` and `NotifyOn*`, all enabled by default)
 
 - `Properties/Resources.resx` exists but is not used by capture logic
 
-- Duplicate path separators exist in git for some `Overlay/` files (Windows path normalization) — functionally identical files
+- `ConfigForm` is a `partial` class split across `Config/ConfigForm*.cs`; `HotkeyControl` lives in `Config/HotkeyControl.cs`
 
